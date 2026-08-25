@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>댕댕셔틀 일정표</title>
+<style>
+  :root{
+    --cream:#FBF6ED;
+    --card:#FFFFFF;
+    --ink:#3B2E22;
+    --ink-soft:#8A7A68;
+    --brown:#7A5A3A;
+    --brown-dark:#5C4229;
+    --line:#E9DFCF;
+    --home:#5E86A3;
+    --home-bg:#E9F1F6;
+    --guardian:#D98A4D;
+    --guardian-bg:#FBEBDA;
+    --accent:#D9723A;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    height:100%;
+    margin:0;
+    padding:0;
+    background:var(--cream);
+  }
+  .dsw-shell{
+    position:fixed;
+    top:0;
+    bottom:0;
+    left:50%;
+    transform:translateX(-50%);
+    width:100%;
+    max-width:420px;
+    background:var(--cream);
+    border-radius:0;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .dsw{
+    font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR",sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    display:flex;
+    flex-direction:column;
+    height:100%;
+    overflow:hidden;
+  }
+  .dsw-topfixed{
+    padding:16px 14px 0;
+    flex-shrink:0;
+  }
+  .dsw-header{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:4px;
+  }
+  .dsw-header .paw{font-size:24px;}
+  .dsw-title{
+    font-size:19px;
+    font-weight:800;
+    letter-spacing:-0.3px;
+  }
+  .dsw-sub{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin:0 0 12px 34px;
+  }
+  .dsw-tabs{
+    display:flex;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .dsw-tab{
+    flex:1;
+    text-align:center;
+    padding:9px 0;
+    border-radius:10px;
+    background:var(--card);
+    border:1px solid var(--line);
+    font-size:13.5px;
+    font-weight:700;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .dsw-tab.active{
+    background:var(--brown);
+    color:#fff;
+    border-color:var(--brown);
+  }
+  .dsw-scrollarea{
+    flex:1;
+    min-height:0;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding:0 14px 24px;
+  }
+  .dsw-panel{display:none;}
+  .dsw-panel.active{display:block;}
+
+  /* --- input panel --- */
+  .dsw-card{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+    margin-bottom:14px;
+  }
+  .dsw-card-label{
+    font-size:13px;
+    font-weight:700;
+    color:var(--brown-dark);
+    margin-bottom:8px;
+    display:block;
+  }
+  .dsw-datebox{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:12px;
+  }
+  .dsw-datebox input[type=date]{
+    flex:1;
+    padding:9px 10px;
+    border-radius:9px;
+    border:1px solid var(--line);
+    font-size:14px;
+    background:#fff;
+    color:var(--ink);
+  }
+  textarea.dsw-input{
+    width:100%;
+    min-height:150px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    padding:10px;
+    font-size:14px;
+    line-height:1.55;
+    resize:vertical;
+    background:#FFFDF9;
+    color:var(--ink);
+  }
+  .dsw-hint{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:6px;
+    line-height:1.5;
+  }
+  .dsw-btn{
+    display:block;
+    width:100%;
+    margin-top:12px;
+    padding:12px 0;
+    border:none;
+    border-radius:10px;
+    background:var(--accent);
+    color:#fff;
+    font-size:15px;
+    font-weight:800;
+    cursor:pointer;
+  }
+  .dsw-btn:active{opacity:0.85;}
+  .dsw-btn.secondary{
+    background:#fff;
+    color:var(--brown-dark);
+    border:1px solid var(--line);
+    font-weight:700;
+  }
+
+  /* --- timeline --- */
+  .dsw-empty{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:13.5px;
+    padding:40px 10px;
+  }
+  .dsw-timeline{
+    position:relative;
+    padding-left:22px;
+  }
+  .dsw-timeline::before{
+    content:"";
+    position:absolute;
+    left:7px;
+    top:6px;
+    bottom:6px;
+    width:2px;
+    background:var(--line);
+  }
+  .dsw-item{
+    position:relative;
+    margin-bottom:14px;
+  }
+  .dsw-dot{
+    position:absolute;
+    left:-22px;
+    top:14px;
+    width:14px;
+    height:14px;
+    border-radius:50%;
+    background:var(--home);
+    border:3px solid var(--cream);
+  }
+  .dsw-item.guardian .dsw-dot{background:var(--guardian);}
+  .dsw-item.unknown .dsw-dot{background:#BDBDBD;}
+
+  .dsw-itemcard{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:12px 14px;
+  }
+  .dsw-item-top{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .dsw-time{
+    font-size:19px;
+    font-weight:800;
+    color:var(--brown-dark);
+    font-variant-numeric:tabular-nums;
+  }
+  .dsw-name{
+    font-size:15.5px;
+    font-weight:800;
+    margin-left:8px;
+  }
+  .dsw-breed{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    font-weight:600;
+  }
+  .dsw-toggle{
+    display:flex;
+    border-radius:8px;
+    overflow:hidden;
+    border:1px solid var(--line);
+    flex-shrink:0;
+  }
+  .dsw-toggle button{
+    border:none;
+    padding:6px 10px;
+    font-size:12px;
+    font-weight:700;
+    background:#fff;
+    color:var(--ink-soft);
+    cursor:pointer;
+  }
+  .dsw-toggle button.on.home{background:var(--home-bg);color:var(--home);}
+  .dsw-toggle button.on.guardian{background:var(--guardian-bg);color:var(--guardian);}
+
+  .dsw-body{
+    margin-top:8px;
+    font-size:13px;
+    color:var(--ink);
+    line-height:1.6;
+  }
+  .dsw-row{
+    display:flex;
+    gap:6px;
+    margin-bottom:3px;
+  }
+  .dsw-row .k{
+    flex-shrink:0;
+    color:var(--ink-soft);
+    font-weight:700;
+    width:44px;
+  }
+  .dsw-row .v{
+    flex:1;
+    word-break:keep-all;
+  }
+  .dsw-note{
+    margin-top:6px;
+    padding:7px 9px;
+    background:#FFF7E8;
+    border-radius:8px;
+    font-size:12px;
+    color:#8A5A1E;
+    font-weight:600;
+    line-height:1.5;
+  }
+  .dsw-editrow{
+    margin-top:8px;
+    display:flex;
+    gap:6px;
+  }
+  .dsw-editrow input{
+    flex:1;
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:6px 8px;
+    font-size:12.5px;
+    background:#FFFDF9;
+  }
+  .dsw-unmatched{
+    font-size:12px;
+    color:#B3541E;
+    background:#FDEDE2;
+    padding:6px 9px;
+    border-radius:8px;
+    margin-top:6px;
+  }
+  .dsw-cage-tag{
+    display:inline-block;
+    font-size:11px;
+    font-weight:700;
+    padding:2px 7px;
+    border-radius:6px;
+    background:#F1E9DA;
+    color:var(--brown-dark);
+    margin-left:6px;
+  }
+
+  /* --- database panel --- */
+  .dsw-dblist{max-height:none;}
+  .dsw-dbitem{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px 12px;
+    margin-bottom:8px;
+  }
+  .dsw-dbitem-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    cursor:pointer;
+  }
+  .dsw-dbitem-head .nm{font-weight:800;font-size:14px;}
+  .dsw-dbitem-head .br{font-size:11.5px;color:var(--ink-soft);margin-left:6px;font-weight:600;}
+  .dsw-dbitem-body{
+    margin-top:8px;
+    display:none;
+  }
+  .dsw-dbitem-body.open{display:block;}
+  .dsw-dbitem-body label{
+    display:block;
+    font-size:11px;
+    color:var(--ink-soft);
+    font-weight:700;
+    margin:6px 0 3px;
+  }
+  .dsw-dbitem-body input{
+    width:100%;
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:6px 8px;
+    font-size:12.5px;
+    background:#FFFDF9;
+  }
+  .dsw-addbtn{
+    text-align:center;
+    padding:10px;
+    border:1.5px dashed var(--line);
+    border-radius:12px;
+    color:var(--ink-soft);
+    font-size:13px;
+    font-weight:700;
+    cursor:pointer;
+    margin-bottom:8px;
+  }
+  .dsw-savedmsg{
+    font-size:11px;
+    color:#4C8A5E;
+    text-align:center;
+    margin-top:6px;
+    min-height:14px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== LOGIN GATE ====== -->
+<div id="dsw-gate" style="
+  position:fixed;inset:0;background:#FBF6ED;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:28px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif;
+  z-index:9999;">
+  <div style="font-size:44px;margin-bottom:10px;">🐾</div>
+  <div style="font-size:19px;font-weight:800;color:#3B2E22;margin-bottom:6px;">댕댕셔틀 일정표</div>
+  <div style="font-size:13px;color:#8A7A68;margin-bottom:26px;">허용된 구글 계정으로 로그인해야 볼 수 있어요</div>
+  <button id="dsw-google-login" style="
+    display:flex;align-items:center;gap:10px;
+    background:#fff;border:1px solid #E9DFCF;border-radius:10px;
+    padding:12px 22px;font-size:14.5px;font-weight:700;color:#3B2E22;cursor:pointer;">
+    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.9-2.26 5.36-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A24 24 0 0 0 0 24c0 3.87.92 7.53 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    Google로 로그인
+  </button>
+  <div id="dsw-gate-msg" style="margin-top:16px;font-size:12.5px;color:#B3541E;font-weight:600;"></div>
+</div>
+
+<div class="dsw-shell" id="dsw-app-shell" style="display:none;">
+<div class="dsw">
+  <div class="dsw-topfixed">
+    <div class="dsw-header"><span class="paw">🐾</span><span class="dsw-title">댕댕셔틀 일정표</span></div>
+    <p class="dsw-sub">일정 메시지를 붙여넣으면 시간순으로 정리돼요</p>
+    <p id="dsw-syncstatus" style="font-size:11px;font-weight:700;margin:0 0 10px 0;"></p>
+
+    <div class="dsw-tabs">
+      <div class="dsw-tab active" data-tab="input">일정 입력</div>
+      <div class="dsw-tab" data-tab="timeline">타임라인</div>
+      <div class="dsw-tab" data-tab="db">주소록 관리</div>
+    </div>
+  </div>
+
+  <div class="dsw-scrollarea">
+    <!-- INPUT PANEL -->
+    <div class="dsw-panel active" id="panel-input">
+      <div class="dsw-card">
+        <span class="dsw-card-label">날짜</span>
+        <div class="dsw-datebox">
+          <input type="date" id="dsw-date"/>
+        </div>
+        <span class="dsw-card-label">일정 메시지 붙여넣기</span>
+        <textarea class="dsw-input" id="dsw-raw" placeholder="예)
+몽구 ㅡ8시15분(보호자)
+로아 ㅡ8시30(집)
+하찌 ㅡ8시45(집)
+보리 ㅡ9시5분(보호자)"></textarea>
+        <div class="dsw-hint">이름, 시간, (보호자)/(집) 형식이면 자동으로 인식돼요. 괄호를 안 써도 저장된 정보로 기본값을 추정해요.</div>
+        <button class="dsw-btn" id="dsw-parse-btn">일정 정리하기 →</button>
+      </div>
+    </div>
+
+    <!-- TIMELINE PANEL -->
+    <div class="dsw-panel" id="panel-timeline">
+      <div id="dsw-timeline-wrap">
+        <div class="dsw-empty">아직 정리된 일정이 없어요.<br/>‘일정 입력’ 탭에서 메시지를 붙여넣어 주세요 🐶</div>
+      </div>
+    </div>
+
+    <!-- DB PANEL -->
+    <div class="dsw-panel" id="panel-db">
+      <div class="dsw-addbtn" id="dsw-add-dog">+ 새 강아지 추가</div>
+      <div class="dsw-dblist" id="dsw-dblist"></div>
+    </div>
+
+    <div style="text-align:center;padding:6px 0 2px;">
+      <button id="dsw-logout-btn" style="background:none;border:none;color:#8A7A68;font-size:11.5px;text-decoration:underline;cursor:pointer;">로그아웃</button>
+    </div>
+    <div class="dsw-savedmsg" id="dsw-saved"></div>
+  </div>
+</div>
+</div>
+
+<!-- ====== Firebase (auth + shared syncing) ====== -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
+
+<script>
+(function(){
+
+  // ---------- 허용된 구글 계정 ----------
+  const ALLOWED_EMAILS = ["hongmihem@gmail.com"];
+
+  // ---------- Firebase 설정 : 아래 값을 본인 Firebase 프로젝트 값으로 바꿔주세요 ----------
+  // 안내: 채팅에서 "Firebase 설정법" 참고. 값을 안 바꾸면 자동으로 이 기기에만 저장되는 모드로 동작해요.
+  const FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDIGeo9-3tRHhlyY7yUayoGIShhSN6HXxg",
+    authDomain: "dog-shuttle.firebaseapp.com",
+    databaseURL: "https://dog-shuttle-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "dog-shuttle",
+    storageBucket: "dog-shuttle.firebasestorage.app",
+    messagingSenderId: "272706556105",
+    appId: "1:272706556105:web:034ec8bf2c1f9937297d18"
+  };
+  const FIREBASE_ENABLED = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('YOUR_') === -1;
+  let fbRef = null;
+  let fbAuth = null;
+  if(FIREBASE_ENABLED){
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      fbRef = firebase.database();
+      fbAuth = firebase.auth();
+    }catch(e){ console.error('Firebase init failed', e); }
+  }
+
+  // ---------- dog database ----------
+  // NOTE: this file is hosted on a public GitHub repo, so nothing sensitive
+  // lives in the source anymore. The real dog list (addresses, door codes)
+  // is stored only inside Firebase, which is locked down by login + database
+  // rules. On first run (empty database) this starts as an empty list —
+  // import the private seed file into Firebase once via the console's
+  // "JSON 가져오기" feature, or add dogs one by one in the 주소록 관리 tab.
+  const DEFAULT_DB = [];
+
+  let db = [];
+  let schedule = []; // current parsed schedule for selected date
+  let currentDate = new Date().toISOString().slice(0,10);
+
+  const $ = (sel, root) => (root||document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root||document).querySelectorAll(sel));
+
+  function showSaved(msg){
+    const el = $('#dsw-saved');
+    el.textContent = msg || '저장됨';
+    clearTimeout(showSaved._t);
+    showSaved._t = setTimeout(()=>{ el.textContent=''; }, 1500);
+  }
+
+  // ---------- storage adapter ----------
+  // Priority: Firebase Realtime Database (shared across everyone, stores
+  // real JS objects/arrays natively) → window.storage (only works inside a
+  // Claude artifact, stores strings) → localStorage (this device only,
+  // last-resort fallback, stores strings).
+  const hasWidgetStorage = (typeof window !== 'undefined') && !!window.storage;
+
+  function fbPath(key){
+    // Firebase RTDB paths can't contain '.', '#', '$', '[', ']'
+    return key.replace(/[.#$\[\]]/g, '_');
+  }
+
+  // Returns a parsed JS value (object/array/etc) or null.
+  async function storageGetValue(key){
+    if(FIREBASE_ENABLED && fbRef){
+      try{
+        const snap = await fbRef.ref(fbPath(key)).once('value');
+        const v = snap.val();
+        return (v === null || v === undefined) ? null : v;
+      }catch(e){ console.error('firebase get failed', e); return null; }
+    }
+    let raw = null;
+    if(hasWidgetStorage){
+      try{
+        const res = await window.storage.get(key, true);
+        raw = (res && res.value) ? res.value : null;
+      }catch(e){ raw = null; }
+    } else {
+      try{ raw = localStorage.getItem(key); }catch(e){ raw = null; }
+    }
+    if(raw === null) return null;
+    try{ return JSON.parse(raw); }catch(e){ return null; }
+  }
+
+  // Accepts a JS value (object/array/etc) and persists it.
+  async function storageSetValue(key, value){
+    if(FIREBASE_ENABLED && fbRef){
+      try{ await fbRef.ref(fbPath(key)).set(value); return true; }
+      catch(e){ console.error('firebase set failed', e); return false; }
+    }
+    const raw = JSON.stringify(value);
+    if(hasWidgetStorage){
+      try{ await window.storage.set(key, raw, true); return true; }
+      catch(e){ console.error('storage.set failed', e); return false; }
+    }
+    try{ localStorage.setItem(key, raw); return true; }
+    catch(e){ console.error('localStorage.setItem failed', e); return false; }
+  }
+
+  // live sync: when Firebase is on, re-render automatically when someone
+  // else changes the data. onChange receives the parsed value directly.
+  function watchLive(key, onChange){
+    if(!(FIREBASE_ENABLED && fbRef)) return null;
+    const ref = fbRef.ref(fbPath(key));
+    ref.on('value', (snap)=>{
+      const v = snap.val();
+      if(v !== null && v !== undefined) onChange(v);
+    });
+    return ref;
+  }
+
+  async function loadDB(){
+    let stored = await storageGetValue('dog-database');
+    if(!Array.isArray(stored)) stored = null;
+
+    if(!stored){
+      db = JSON.parse(JSON.stringify(DEFAULT_DB));
+      if(db.length) await saveDB();
+      return;
+    }
+
+    // merge in any default dogs the saved DB is missing (only relevant if
+    // DEFAULT_DB is ever populated again — currently empty by design)
+    let changed = false;
+    DEFAULT_DB.forEach(def=>{
+      if(!stored.find(d=>d.name===def.name)){
+        stored.push(JSON.parse(JSON.stringify(def)));
+        changed = true;
+      }
+    });
+    db = stored;
+    if(changed) await saveDB();
+  }
+
+  async function saveDB(){
+    await storageSetValue('dog-database', db);
+  }
+
+  async function loadSchedule(dateStr){
+    const stored = await storageGetValue('schedule:'+dateStr);
+    schedule = Array.isArray(stored) ? stored : [];
+  }
+
+  async function saveSchedule(){
+    const ok = await storageSetValue('schedule:'+currentDate, schedule);
+    if(ok) showSaved('저장됨 ✓');
+  }
+
+  function findDog(name){
+    if(!name) return null;
+    const clean = name.trim();
+    let hit = db.find(d => d.name === clean);
+    if(hit) return hit;
+    hit = db.find(d => (d.displayName||'').includes(clean) || clean.includes(d.name));
+    return hit || null;
+  }
+
+  // ---------- parsing ----------
+  function parseScheduleText(text){
+    const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
+    const entries = [];
+    for(const rawLine of lines){
+      let line = rawLine
+        .replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\s*/, '')
+        .replace(/^\d+[\.\)]\s*/, '');
+
+      let type = null;
+      const typeMatch = line.match(/\(([^)]*)\)/);
+      if(typeMatch){
+        if(typeMatch[1].includes('보호자')) type = 'guardian';
+        else if(typeMatch[1].includes('집')) type = 'home';
+        line = line.replace(typeMatch[0], '');
+      }
+
+      let hour=null, min=0;
+      const timeMatch = line.match(/(\d{1,2})\s*[시:]\s*(\d{1,2})?\s*분?/);
+      if(timeMatch){
+        hour = parseInt(timeMatch[1],10);
+        min = timeMatch[2] ? parseInt(timeMatch[2],10) : 0;
+        line = line.replace(timeMatch[0], '');
+      }
+
+      line = line.replace(/[ㅡ\-—‐~]+/g, ' ').trim();
+      const name = (line.split(/\s+/)[0] || rawLine).trim();
+      if(!name) continue;
+
+      entries.push({
+        id: 'e' + Date.now() + Math.random().toString(36).slice(2,7),
+        rawName: name,
+        hour, min, type,
+        rawLine
+      });
+    }
+    return entries;
+  }
+
+  function buildScheduleFromParsed(parsed){
+    return parsed.map(p=>{
+      const dog = findDog(p.rawName);
+      let type = p.type;
+      if(!type){
+        type = (dog && dog.address) ? 'home' : 'guardian';
+      }
+      return {
+        id: p.id,
+        name: dog ? (dog.displayName || dog.name) : p.rawName,
+        matchedKey: dog ? dog.name : null,
+        breed: dog ? dog.breed : '',
+        address: dog ? dog.address : '',
+        access: dog ? dog.access : '',
+        note: dog ? dog.note : '',
+        cage: dog ? dog.cage : '',
+        hour: p.hour,
+        min: p.min,
+        type: type,
+        guardianLocation: (dog && dog.guardianSpot) ? dog.guardianSpot : '',
+        matched: !!dog
+      };
+    }).sort((a,b)=>{
+      const av = (a.hour==null) ? 9999 : a.hour*60+a.min;
+      const bv = (b.hour==null) ? 9999 : b.hour*60+b.min;
+      return av-bv;
+    });
+  }
+
+  function fmtTime(h,m){
+    if(h==null) return '시간 미정';
+    const mm = (m||0).toString().padStart(2,'0');
+    return h+':'+mm;
+  }
+
+  // ---------- render timeline ----------
+  function renderTimeline(){
+    const wrap = $('#dsw-timeline-wrap');
+    if(!schedule.length){
+      wrap.innerHTML = '<div class="dsw-empty">아직 정리된 일정이 없어요.<br/>‘일정 입력’ 탭에서 메시지를 붙여넣어 주세요 🐶</div>';
+      return;
+    }
+    let html = '<div class="dsw-timeline">';
+    schedule.forEach((it, idx)=>{
+      const cls = !it.matched ? 'unknown' : (it.type==='guardian' ? 'guardian':'');
+      html += '<div class="dsw-item '+cls+'" data-id="'+it.id+'">';
+      html += '<div class="dsw-dot"></div>';
+      html += '<div class="dsw-itemcard">';
+      html += '<div class="dsw-item-top">';
+      html += '<div><span class="dsw-time">'+fmtTime(it.hour,it.min)+'</span><span class="dsw-name">'+(idx+1)+'. '+esc(it.name)+'</span>' + (it.breed?('<div class="dsw-breed">'+esc(it.breed)+'</div>'):'') + '</div>';
+      html += '<div class="dsw-toggle">';
+      html += '<button data-act="type" data-val="home" class="'+(it.type==='home'?'on home':'')+'">집</button>';
+      html += '<button data-act="type" data-val="guardian" class="'+(it.type==='guardian'?'on guardian':'')+'">보호자</button>';
+      html += '</div></div>';
+
+      html += '<div class="dsw-body">';
+      if(!it.matched){
+        html += '<div class="dsw-unmatched">⚠️ 주소록에 없는 이름이에요. 주소록 관리 탭에서 추가하면 다음부터 자동으로 채워져요.</div>';
+      }
+      if(it.type === 'home'){
+        if(it.address) html += '<div class="dsw-row"><span class="k">주소</span><span class="v">'+esc(it.address)+'</span></div>';
+        if(it.access) html += '<div class="dsw-row"><span class="k">출입</span><span class="v">'+esc(it.access)+'</span></div>';
+      } else {
+        html += '<div class="dsw-row"><span class="k">픽업지</span><span class="v"><input class="dsw-guard-input" data-id="'+it.id+'" placeholder="예: 오리역 7번 출구 앞" value="'+esc(it.guardianLocation||'')+'" style="width:100%;border:1px solid var(--line);border-radius:7px;padding:5px 7px;font-size:12.5px;"/></span></div>';
+      }
+      if(it.note) html += '<div class="dsw-note">📌 '+esc(it.note)+'</div>';
+      html += '<div class="dsw-editrow">';
+      html += '<input data-cage-id="'+it.id+'" placeholder="캔넬 크기 (예: 작은 캔넬)" value="'+esc(it.cage||'')+'"/>';
+      html += '</div>';
+      html += '</div>'; // body
+      html += '</div></div>';
+    });
+    html += '</div>';
+    wrap.innerHTML = html;
+
+    $$('.dsw-toggle button', wrap).forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        const item = e.target.closest('.dsw-item');
+        const id = item.getAttribute('data-id');
+        const val = e.target.getAttribute('data-val');
+        const entry = schedule.find(s=>s.id===id);
+        if(entry){ entry.type = val; renderTimeline(); await saveSchedule(); }
+      });
+    });
+    $$('.dsw-guard-input', wrap).forEach(inp=>{
+      inp.addEventListener('change', async (e)=>{
+        const entry = schedule.find(s=>s.id===e.target.getAttribute('data-id'));
+        if(entry){ entry.guardianLocation = e.target.value; await saveSchedule(); }
+      });
+    });
+    $$('[data-cage-id]', wrap).forEach(inp=>{
+      inp.addEventListener('change', async (e)=>{
+        const id = e.target.getAttribute('data-cage-id');
+        const entry = schedule.find(s=>s.id===id);
+        if(entry){
+          entry.cage = e.target.value;
+          if(entry.matchedKey){
+            const dog = db.find(d=>d.name===entry.matchedKey);
+            if(dog){ dog.cage = e.target.value; await saveDB(); }
+          }
+          await saveSchedule();
+        }
+      });
+    });
+  }
+
+  function esc(s){
+    return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- render DB panel ----------
+  function renderDB(){
+    const list = $('#dsw-dblist');
+    list.innerHTML = db.map((d, i)=>{
+      return '<div class="dsw-dbitem" data-idx="'+i+'">'
+        + '<div class="dsw-dbitem-head"><div><span class="nm">'+esc(d.displayName||d.name)+'</span><span class="br">'+esc(d.breed||'')+'</span></div><span style="color:var(--ink-soft);font-size:12px;">▾</span></div>'
+        + '<div class="dsw-dbitem-body">'
+          + '<label>이름</label><input data-f="name" value="'+esc(d.name)+'"/>'
+          + '<label>견종</label><input data-f="breed" value="'+esc(d.breed||'')+'"/>'
+          + '<label>주소</label><input data-f="address" value="'+esc(d.address||'')+'"/>'
+          + '<label>출입 정보</label><input data-f="access" value="'+esc(d.access||'')+'"/>'
+          + '<label>비고</label><input data-f="note" value="'+esc(d.note||'')+'"/>'
+          + '<label>캔넬 크기</label><input data-f="cage" value="'+esc(d.cage||'')+'"/>'
+          + '<label>보호자 픽업 장소</label><input data-f="guardianSpot" value="'+esc(d.guardianSpot||'')+'"/>'
+        + '</div>'
+      + '</div>';
+    }).join('');
+
+    $$('.dsw-dbitem-head', list).forEach(head=>{
+      head.addEventListener('click', ()=>{
+        const body = head.nextElementSibling;
+        body.classList.toggle('open');
+      });
+    });
+    $$('.dsw-dbitem', list).forEach(item=>{
+      const idx = parseInt(item.getAttribute('data-idx'),10);
+      $$('input', item).forEach(inp=>{
+        inp.addEventListener('change', async (e)=>{
+          const f = e.target.getAttribute('data-f');
+          db[idx][f] = e.target.value;
+          await saveDB();
+          renderDB();
+          // reopen the edited one
+          const heads = $$('.dsw-dbitem-head', list);
+          if(heads[idx]) heads[idx].nextElementSibling.classList.add('open');
+        });
+      });
+    });
+  }
+
+  function addNewDog(){
+    db.push({name:'새강아지', breed:'', address:'', access:'', note:'', cage:''});
+    saveDB();
+    renderDB();
+    const heads = $$('.dsw-dbitem-head', $('#dsw-dblist'));
+    const last = heads[heads.length-1];
+    if(last){ last.nextElementSibling.classList.add('open'); last.scrollIntoView({behavior:'smooth', block:'center'}); }
+  }
+
+  // ---------- tabs ----------
+  function switchTab(name){
+    $$('.dsw-tab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===name));
+    $$('.dsw-panel').forEach(p=>p.classList.remove('active'));
+    $('#panel-'+name).classList.add('active');
+  }
+
+  // ---------- init ----------
+  let scheduleListenerRef = null;
+
+  function updateSyncBanner(){
+    const el = $('#dsw-syncstatus');
+    if(!el) return;
+    if(FIREBASE_ENABLED){
+      el.textContent = '🔗 실시간 공유 중 — 모두에게 같은 내용이 보여요';
+      el.style.color = '#4C8A5E';
+    } else {
+      el.textContent = '⚠️ 이 기기에만 저장돼요 (공유하려면 Firebase 설정 필요)';
+      el.style.color = '#B3541E';
+    }
+  }
+
+  async function init(){
+    $('#dsw-date').value = currentDate;
+    await loadDB();
+    await loadSchedule(currentDate);
+    renderDB();
+    renderTimeline();
+    updateSyncBanner();
+
+    // live updates from other people
+    watchLive('dog-database', (v)=>{
+      if(Array.isArray(v)){ db = v; renderDB(); }
+    });
+    if(FIREBASE_ENABLED && fbRef){
+      scheduleListenerRef = fbRef.ref(fbPath('schedule:'+currentDate));
+      scheduleListenerRef.on('value', (snap)=>{
+        const v = snap.val();
+        if(Array.isArray(v)){ schedule = v; renderTimeline(); }
+      });
+    }
+
+    $$('.dsw-tab').forEach(t=>{
+      t.addEventListener('click', ()=> switchTab(t.getAttribute('data-tab')));
+    });
+
+    $('#dsw-add-dog').addEventListener('click', addNewDog);
+
+    $('#dsw-date').addEventListener('change', async (e)=>{
+      if(scheduleListenerRef){ scheduleListenerRef.off(); scheduleListenerRef = null; }
+      currentDate = e.target.value;
+      await loadSchedule(currentDate);
+      renderTimeline();
+      if(FIREBASE_ENABLED && fbRef){
+        scheduleListenerRef = fbRef.ref(fbPath('schedule:'+currentDate));
+        scheduleListenerRef.on('value', (snap)=>{
+          const v = snap.val();
+          if(Array.isArray(v)){ schedule = v; renderTimeline(); }
+        });
+      }
+    });
+
+    $('#dsw-parse-btn').addEventListener('click', async ()=>{
+      const text = $('#dsw-raw').value;
+      if(!text.trim()) return;
+      const parsed = parseScheduleText(text);
+      const newEntries = buildScheduleFromParsed(parsed);
+      schedule = newEntries;
+      await saveSchedule();
+      renderTimeline();
+      switchTab('timeline');
+    });
+  }
+
+  let appStarted = false;
+
+  function showGate(msg){
+    $('#dsw-app-shell').style.display = 'none';
+    $('#dsw-gate').style.display = 'flex';
+    $('#dsw-gate-msg').textContent = msg || '';
+  }
+
+  function showApp(){
+    $('#dsw-gate').style.display = 'none';
+    $('#dsw-app-shell').style.display = 'flex';
+    if(!appStarted){
+      appStarted = true;
+      init();
+    }
+  }
+
+  // ---------- auth flow ----------
+  // NOTE: using signInWithPopup instead of signInWithRedirect — iOS Safari's
+  // Intelligent Tracking Prevention frequently drops the auth session across
+  // the redirect round-trip, which silently bounces the user back to the
+  // login screen. The popup flow keeps everything in one continuous user
+  // gesture, which Safari handles reliably.
+  if(FIREBASE_ENABLED && fbAuth){
+    $('#dsw-google-login').addEventListener('click', ()=>{
+      const provider = new firebase.auth.GoogleAuthProvider();
+      fbAuth.signInWithPopup(provider).catch((e)=>{
+        console.error('login popup failed', e);
+        if(e && e.code === 'auth/popup-blocked'){
+          showGate('팝업이 차단됐어요. 브라우저 팝업 차단을 해제한 뒤 다시 시도해주세요.');
+        } else if(e && e.code === 'auth/cancelled-popup-request'){
+          // user tapped multiple times / opened another popup — ignore silently
+        } else if(e && e.code === 'auth/popup-closed-by-user'){
+          // user closed the popup on purpose — no need to show an error
+        } else {
+          showGate('로그인 실패: ' + ((e && (e.code || e.message)) || '알 수 없는 오류'));
+        }
+      });
+    });
+    $('#dsw-logout-btn').addEventListener('click', ()=>{
+      fbAuth.signOut();
+    });
+
+    fbAuth.onAuthStateChanged((user)=>{
+      if(user){
+        if(ALLOWED_EMAILS.includes(user.email)){
+          showApp();
+        } else {
+          fbAuth.signOut();
+          showGate('이 구글 계정(' + user.email + ')은 접근 권한이 없어요.');
+        }
+      } else {
+        showGate();
+      }
+    });
+  } else {
+    // Firebase not configured (e.g. testing locally) — skip login, just run the app
+    showApp();
+  }
+})();
+</script>
+</body>
+</html>
