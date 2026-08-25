@@ -357,6 +357,50 @@
     padding:10px 12px;
     margin-bottom:8px;
   }
+
+  /* 스와이프해서 삭제 */
+  .dsw-swipe{
+    position:relative;
+    margin-bottom:8px;
+    border-radius:12px;
+    overflow:hidden;
+    background:#D9534F;
+  }
+  .dsw-swipe-del{
+    position:absolute;
+    top:0;right:0;bottom:0;
+    width:88px;
+    border:none;
+    background:#D9534F;
+    color:#fff;
+    font-size:13.5px;
+    font-weight:800;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:2px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .dsw-swipe-del .ic{font-size:17px;}
+  .dsw-swipe > .dsw-dbitem{
+    position:relative;
+    margin-bottom:0;
+    touch-action:pan-y;
+    will-change:transform;
+    transition:transform .22s cubic-bezier(.2,.8,.3,1);
+  }
+  .dsw-swipe.open > .dsw-dbitem{
+    box-shadow:-6px 0 10px rgba(0,0,0,0.06);
+  }
+  .dsw-swipehint{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    text-align:center;
+    margin:0 0 10px;
+    line-height:1.5;
+  }
   .dsw-dbitem-head{
     display:flex;
     justify-content:space-between;
@@ -605,6 +649,7 @@
     <!-- DB PANEL -->
     <div class="dsw-panel" id="panel-db">
       <div class="dsw-addbtn" id="dsw-add-dog">+ 새 강아지 추가</div>
+      <p class="dsw-swipehint">카드를 <b>왼쪽으로 밀면</b> 삭제 버튼이 나와요 👈</p>
       <div class="dsw-dblist" id="dsw-dblist"></div>
     </div>
 
@@ -749,7 +794,7 @@
     const t = e.target.closest ? e.target.closest('button, .dsw-tab, .dsw-addbtn, .dsw-dbitem-head') : null;
     if(!t) return;
     if(t.id === 'dsw-sound-btn') return;              // 자체 핸들러에서 처리
-    if(t.classList.contains('dsw-del-btn') || t.id === 'dsw-clear-all-btn'){ SoundFX.play('del'); return; }
+    if(t.classList.contains('dsw-del-btn') || t.classList.contains('dsw-swipe-del') || t.id === 'dsw-clear-all-btn'){ SoundFX.play('del'); return; }
     if(t.closest('.dsw-seg')){
       SoundFX.play(t.getAttribute('data-trip') === 'back' ? 'guardian' : 'home');
       return;
@@ -1344,29 +1389,119 @@
   }
 
   // ---------- render DB panel ----------
+  // 카드를 왼쪽으로 밀면 뒤에 숨어 있던 삭제 버튼이 드러난다.
+  // 세로로 움직이면 스와이프로 보지 않고 그냥 스크롤이 되게 둔다.
+  const SWIPE_OPEN = -88;   // 열렸을 때 카드가 밀려나는 거리(px)
+
+  function closeAllSwipes(except){
+    $$('.dsw-swipe').forEach(w=>{
+      if(w === except) return;
+      w.classList.remove('open');
+      const card = $('.dsw-dbitem', w);
+      if(card) card.style.transform = 'translateX(0px)';
+    });
+  }
+
+  function attachSwipe(wrap){
+    const card = $('.dsw-dbitem', wrap);
+    if(!card) return;
+    let startX = 0, startY = 0, base = 0;
+    let tracking = false, horizontal = false, moved = false;
+
+    function setX(x, animate){
+      card.style.transition = animate ? '' : 'none';
+      card.style.transform = 'translateX(' + x + 'px)';
+    }
+
+    card.addEventListener('pointerdown', (e)=>{
+      // 입력칸이나 버튼을 만질 때는 스와이프로 가로채지 않는다
+      if(e.target.closest('input, select, textarea, button')) return;
+      tracking = true; horizontal = false; moved = false;
+      startX = e.clientX; startY = e.clientY;
+      base = wrap.classList.contains('open') ? SWIPE_OPEN : 0;
+    });
+
+    card.addEventListener('pointermove', (e)=>{
+      if(!tracking) return;
+      const mx = e.clientX - startX;
+      const my = e.clientY - startY;
+
+      if(!horizontal){
+        if(Math.abs(mx) < 8 && Math.abs(my) < 8) return;
+        if(Math.abs(my) >= Math.abs(mx)){ tracking = false; return; } // 세로 스크롤
+        horizontal = true;
+        closeAllSwipes(wrap);
+        try{ card.setPointerCapture(e.pointerId); }catch(err){}
+      }
+
+      moved = true;
+      // 왼쪽으로만 열리고, 살짝만 더 당겨지게 제한
+      const x = Math.max(SWIPE_OPEN - 22, Math.min(0, base + mx));
+      setX(x, false);
+    });
+
+    function finish(){
+      if(!tracking) return;
+      tracking = false;
+      if(!horizontal) return;
+      const cur = parseFloat((card.style.transform.match(/-?[\d.]+/) || [0])[0]) || 0;
+      const open = cur < SWIPE_OPEN / 2;
+      wrap.classList.toggle('open', open);
+      setX(open ? SWIPE_OPEN : 0, true);
+      if(moved) card.dataset.swiped = '1';   // 스와이프 직후의 클릭은 무시
+    }
+
+    card.addEventListener('pointerup', finish);
+    card.addEventListener('pointercancel', finish);
+    card.addEventListener('pointerleave', (e)=>{ if(tracking && horizontal) finish(); });
+  }
+
   function renderDB(){
     const list = $('#dsw-dblist');
     list.innerHTML = db.map((d, i)=>{
-      return '<div class="dsw-dbitem" data-idx="'+i+'">'
-        + '<div class="dsw-dbitem-head"><div><span class="nm">'+esc(d.displayName||d.name)+'</span><span class="br">'+esc(d.breed||'')+'</span></div><span style="color:var(--ink-soft);font-size:12px;">▾</span></div>'
-        + '<div class="dsw-dbitem-body">'
-          + '<label>이름</label><input data-f="name" value="'+esc(d.name)+'"/>'
-          + '<label>견종</label><input data-f="breed" value="'+esc(d.breed||'')+'"/>'
-          + '<label>주소</label><input data-f="address" value="'+esc(d.address||'')+'"/>'
-          + '<label>출입 정보</label><input data-f="access" value="'+esc(d.access||'')+'"/>'
-          + '<label>비고</label><input data-f="note" value="'+esc(d.note||'')+'"/>'
-          + '<label>캔넬 크기</label><input data-f="cage" value="'+esc(d.cage||'')+'"/>'
-          + '<label>보호자 픽업 장소</label><input data-f="guardianSpot" value="'+esc(d.guardianSpot||'')+'"/>'
+      return '<div class="dsw-swipe" data-wrap-idx="'+i+'">'
+        + '<button class="dsw-swipe-del" data-del-idx="'+i+'"><span class="ic">🗑</span>삭제</button>'
+        + '<div class="dsw-dbitem" data-idx="'+i+'">'
+          + '<div class="dsw-dbitem-head"><div><span class="nm">'+esc(d.displayName||d.name)+'</span><span class="br">'+esc(d.breed||'')+'</span></div><span style="color:var(--ink-soft);font-size:12px;">▾</span></div>'
+          + '<div class="dsw-dbitem-body">'
+            + '<label>이름</label><input data-f="name" value="'+esc(d.name)+'"/>'
+            + '<label>견종</label><input data-f="breed" value="'+esc(d.breed||'')+'"/>'
+            + '<label>주소</label><input data-f="address" value="'+esc(d.address||'')+'"/>'
+            + '<label>출입 정보</label><input data-f="access" value="'+esc(d.access||'')+'"/>'
+            + '<label>비고</label><input data-f="note" value="'+esc(d.note||'')+'"/>'
+            + '<label>캔넬 크기</label><input data-f="cage" value="'+esc(d.cage||'')+'"/>'
+            + '<label>보호자 픽업 장소</label><input data-f="guardianSpot" value="'+esc(d.guardianSpot||'')+'"/>'
+          + '</div>'
         + '</div>'
       + '</div>';
     }).join('');
 
+    $$('.dsw-swipe', list).forEach(attachSwipe);
+
     $$('.dsw-dbitem-head', list).forEach(head=>{
       head.addEventListener('click', ()=>{
-        const body = head.nextElementSibling;
-        body.classList.toggle('open');
+        const card = head.closest('.dsw-dbitem');
+        if(card && card.dataset.swiped === '1'){ card.dataset.swiped = ''; return; }
+        const wrap = head.closest('.dsw-swipe');
+        if(wrap && wrap.classList.contains('open')){ closeAllSwipes(); return; }
+        head.nextElementSibling.classList.toggle('open');
       });
     });
+
+    $$('.dsw-swipe-del', list).forEach(btn=>{
+      btn.addEventListener('click', async (e)=>{
+        const idx = parseInt(e.currentTarget.getAttribute('data-del-idx'), 10);
+        const dog = db[idx];
+        if(!dog) return;
+        const ok = confirm('\u2018'+(dog.displayName||dog.name)+'\u2019 을(를) 주소록에서 삭제할까요?\n\n(이미 만들어둔 타임라인 일정은 지워지지 않아요)');
+        if(!ok){ closeAllSwipes(); return; }
+        db.splice(idx, 1);
+        await saveDB();
+        renderDB();
+        showSaved('삭제됨');
+      });
+    });
+
     $$('.dsw-dbitem', list).forEach(item=>{
       const idx = parseInt(item.getAttribute('data-idx'),10);
       $$('input', item).forEach(inp=>{
@@ -1394,10 +1529,16 @@
 
   // ---------- tabs ----------
   function switchTab(name){
+    closeAllSwipes();
     $$('.dsw-tab').forEach(t=>t.classList.toggle('active', t.getAttribute('data-tab')===name));
     $$('.dsw-panel').forEach(p=>p.classList.remove('active'));
     $('#panel-'+name).classList.add('active');
   }
+
+  // 카드 밖을 누르면 열려 있던 삭제 버튼을 닫는다
+  document.addEventListener('pointerdown', (e)=>{
+    if(!(e.target.closest && e.target.closest('.dsw-swipe'))) closeAllSwipes();
+  }, true);
 
   // ---------- init ----------
   let scheduleListenerRef = null;
