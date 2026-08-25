@@ -1749,12 +1749,70 @@
   }
 
   // ---------- 시간 인라인 수정 ----------
+  // iOS의 시간 휠은 '시'와 '분'을 따로 굴리기 때문에 change가 여러 번 난다.
+  // 값이 바뀔 때마다 화면을 다시 그리면 고르는 중에 입력칸이 사라져서
+  // 분을 못 고치게 된다. 그래서 입력 중에는 데이터만 갱신하고,
+  // 입력칸에서 손을 뗐을 때 한 번만 정렬·재렌더한다.
+  let timeEdit = null;   // {id, dirty, orig, timer}
+
   function fmtTimeInput(it){
     if(it.hour == null) return '';
     return String(it.hour).padStart(2,'0') + ':' + String(it.min||0).padStart(2,'0');
   }
 
+  function applyTimeValue(id, value){
+    const entry = schedule.find(s=>s.id===id);
+    if(!entry) return null;
+    const m = /^(\d{1,2}):(\d{2})/.exec((value||'').trim());
+    if(m){
+      const h = parseInt(m[1],10), mi = parseInt(m[2],10);
+      if(h > 23 || mi > 59) return null;
+      entry.hour = h;
+      entry.min = mi;
+    } else {
+      entry.hour = null;   // 비우면 '시간 미정'
+      entry.min = 0;
+    }
+    entry.timeWarn = false;
+    return entry;
+  }
+
+  // 편집을 정리한다. render=false 면 화면은 건드리지 않는다.
+  async function closeTimeEdit(render){
+    if(!timeEdit) return;
+    const st = timeEdit;
+    timeEdit = null;
+    if(st.timer){ clearTimeout(st.timer); st.timer = null; }
+    const entry = schedule.find(s=>s.id===st.id);
+    if(st.dirty){
+      schedule = sortSchedule(schedule);
+      if(render !== false) renderTimeline();
+      if(entry) await saveEntries([entry]);
+    } else if(render !== false){
+      renderTimeline();   // 입력칸을 원래 표시로 되돌린다
+    }
+  }
+
+  function cancelTimeEdit(){
+    if(!timeEdit) return;
+    const st = timeEdit;
+    timeEdit = null;
+    if(st.timer) clearTimeout(st.timer);
+    const entry = schedule.find(s=>s.id===st.id);
+    if(entry && st.orig){          // 되돌리기
+      entry.hour = st.orig.hour;
+      entry.min = st.orig.min;
+      entry.timeWarn = st.orig.timeWarn;
+    }
+    schedule = sortSchedule(schedule);
+    renderTimeline();
+  }
+
   function startTimeEdit(id){
+    // 이미 다른 시간을 고치던 중이면 그 값만 조용히 저장하고 넘어간다
+    if(timeEdit && timeEdit.id !== id) closeTimeEdit(false);
+    if(timeEdit && timeEdit.id === id) return;
+
     const item = $('.dsw-item[data-id="'+id+'"]');
     if(!item) return;
     const span = $('.dsw-time', item);
@@ -1768,37 +1826,32 @@
     input.setAttribute('data-time-input', id);
     input.value = fmtTimeInput(it);
 
-    // 옆에 있던 경고 표시는 잠시 감춘다
     const warn = $('.dsw-timewarn', item);
     if(warn) warn.style.display = 'none';
+
+    timeEdit = { id:id, dirty:false, timer:null,
+                 orig:{ hour:it.hour, min:it.min, timeWarn:it.timeWarn } };
+
+    // 값이 바뀌는 동안에는 화면을 다시 그리지 않는다
+    function onEdit(){
+      if(!timeEdit || timeEdit.id !== id) return;
+      const entry = applyTimeValue(id, input.value);
+      if(!entry) return;
+      timeEdit.dirty = true;
+      // 손을 떼지 않아도 잃어버리지 않게 잠깐 뒤에 저장해둔다
+      if(timeEdit.timer) clearTimeout(timeEdit.timer);
+      timeEdit.timer = setTimeout(()=>{ saveEntries([entry]); }, 700);
+    }
+    input.addEventListener('input', onEdit);
+    input.addEventListener('change', onEdit);
+    input.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){ e.preventDefault(); input.blur(); }
+      else if(e.key === 'Escape'){ e.preventDefault(); cancelTimeEdit(); }
+    });
 
     span.parentNode.replaceChild(input, span);
     input.focus();
     try{ if(input.showPicker) input.showPicker(); }catch(e){}
-    // 엔터로 확정
-    input.addEventListener('keydown', (e)=>{
-      if(e.key === 'Enter'){ e.preventDefault(); input.blur(); }
-      if(e.key === 'Escape'){ renderTimeline(); }
-    });
-  }
-
-  async function commitTimeEdit(id, value){
-    const entry = schedule.find(s=>s.id===id);
-    if(!entry) return;
-    const m = /^(\d{1,2}):(\d{2})/.exec((value||'').trim());
-    if(m){
-      const h = parseInt(m[1],10), mi = parseInt(m[2],10);
-      if(h > 23 || mi > 59){ renderTimeline(); return; }
-      entry.hour = h;
-      entry.min = mi;
-    } else {
-      entry.hour = null;   // 비우면 '시간 미정'
-      entry.min = 0;
-    }
-    entry.timeWarn = false;
-    schedule = sortSchedule(schedule);
-    renderTimeline();
-    await saveEntries([entry]);
   }
 
   // 카드 한 장만 갱신 (토글할 때 909개 노드를 다시 만들지 않는다)
@@ -1892,8 +1945,8 @@
     wrap.addEventListener('change', async (e)=>{
       const t = e.target;
 
-      const timeId = t.getAttribute && t.getAttribute('data-time-input');
-      if(timeId){ await commitTimeEdit(timeId, t.value); return; }
+      // 시간 입력칸은 자체 핸들러에서 처리한다 (여기서 재렌더하면 편집이 끊긴다)
+      if(t.getAttribute && t.getAttribute('data-time-input')) return;
 
       const gid = t.getAttribute && t.getAttribute('data-guard-id');
       if(gid){
@@ -1948,8 +2001,14 @@
     wrap.addEventListener('focusout', (e)=>{
       const timeInput = e.target.getAttribute && e.target.getAttribute('data-time-input');
       setTimeout(()=>{
-        // 시간을 안 바꾸고 다른 곳을 눌렀으면 원래 표시로 되돌린다
-        if(timeInput && document.body.contains(e.target)){ renderTimeline(); return; }
+        if(timeInput){
+          // 다른 시간 입력칸으로 옮겨갔다면 그쪽 편집을 방해하지 않는다
+          const ae = document.activeElement;
+          if(ae && ae.getAttribute && ae.getAttribute('data-time-input')) return;
+          if(timeEdit && timeEdit.id === timeInput){ closeTimeEdit(true); return; }
+          if(document.body.contains(e.target)) renderTimeline();
+          return;
+        }
         if(pendingTimelineRender && !isEditing('#dsw-timeline-wrap')){
           pendingTimelineRender = false;
           renderTimeline();
