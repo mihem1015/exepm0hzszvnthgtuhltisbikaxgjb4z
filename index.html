@@ -625,7 +625,16 @@
 (function(){
 
   // ---------- 허용된 구글 계정 ----------
-  const ALLOWED_EMAILS = ["hongmihem@gmail.com"];
+  // 계정을 추가할 때는 아래 목록에 쉼표로 이어서 적어주세요.
+  // 대소문자는 자동으로 무시되므로 그냥 적어도 됩니다.
+  const ALLOWED_EMAILS = [
+    "hongmihem@gmail.com",
+    "mcnallyK92@gmail.com"
+  ].map(e => e.trim().toLowerCase());
+
+  function isAllowedEmail(email){
+    return !!email && ALLOWED_EMAILS.includes(email.trim().toLowerCase());
+  }
 
   // ---------- Firebase 설정 : 아래 값을 본인 Firebase 프로젝트 값으로 바꿔주세요 ----------
   // 안내: 채팅에서 "Firebase 설정법" 참고. 값을 안 바꾸면 자동으로 이 기기에만 저장되는 모드로 동작해요.
@@ -1567,7 +1576,7 @@
 
     fbAuth.onAuthStateChanged((user)=>{
       if(user){
-        if(ALLOWED_EMAILS.includes(user.email)){
+        if(isAllowedEmail(user.email)){
           showApp();
         } else {
           fbAuth.signOut();
