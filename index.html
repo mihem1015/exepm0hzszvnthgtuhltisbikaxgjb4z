@@ -1,3 +1,9 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>댕댕셔틀 일정표</title>
 <style>
   :root{
     --cream:#FBF6ED;
@@ -368,8 +374,29 @@
     min-height:14px;
   }
 </style>
+</head>
+<body>
 
-<div class="dsw-shell">
+<!-- ====== LOGIN GATE ====== -->
+<div id="dsw-gate" style="
+  position:fixed;inset:0;background:#FBF6ED;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:28px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Pretendard','Noto Sans KR',sans-serif;
+  z-index:9999;">
+  <div style="font-size:44px;margin-bottom:10px;">🐾</div>
+  <div style="font-size:19px;font-weight:800;color:#3B2E22;margin-bottom:6px;">댕댕셔틀 일정표</div>
+  <div style="font-size:13px;color:#8A7A68;margin-bottom:26px;">허용된 구글 계정으로 로그인해야 볼 수 있어요</div>
+  <button id="dsw-google-login" style="
+    display:flex;align-items:center;gap:10px;
+    background:#fff;border:1px solid #E9DFCF;border-radius:10px;
+    padding:12px 22px;font-size:14.5px;font-weight:700;color:#3B2E22;cursor:pointer;">
+    <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.9-2.26 5.36-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59A14.5 14.5 0 0 1 9.5 24c0-1.59.27-3.13.76-4.59l-7.98-6.19A24 24 0 0 0 0 24c0 3.87.92 7.53 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+    Google로 로그인
+  </button>
+  <div id="dsw-gate-msg" style="margin-top:16px;font-size:12.5px;color:#B3541E;font-weight:600;"></div>
+</div>
+
+<div class="dsw-shell" id="dsw-app-shell" style="display:none;">
 <div class="dsw">
   <div class="dsw-topfixed">
     <div class="dsw-header"><span class="paw">🐾</span><span class="dsw-title">댕댕셔틀 일정표</span></div>
@@ -415,17 +442,24 @@
       <div class="dsw-dblist" id="dsw-dblist"></div>
     </div>
 
+    <div style="text-align:center;padding:6px 0 2px;">
+      <button id="dsw-logout-btn" style="background:none;border:none;color:#8A7A68;font-size:11.5px;text-decoration:underline;cursor:pointer;">로그아웃</button>
+    </div>
     <div class="dsw-savedmsg" id="dsw-saved"></div>
   </div>
 </div>
 </div>
 
-<!-- ====== Firebase (for multi-person shared syncing) ====== -->
+<!-- ====== Firebase (auth + shared syncing) ====== -->
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-database-compat.js"></script>
 
 <script>
 (function(){
+
+  // ---------- 허용된 구글 계정 ----------
+  const ALLOWED_EMAILS = ["hongmihem@gmail.com"];
 
   // ---------- Firebase 설정 : 아래 값을 본인 Firebase 프로젝트 값으로 바꿔주세요 ----------
   // 안내: 채팅에서 "Firebase 설정법" 참고. 값을 안 바꾸면 자동으로 이 기기에만 저장되는 모드로 동작해요.
@@ -440,40 +474,23 @@
   };
   const FIREBASE_ENABLED = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('YOUR_') === -1;
   let fbRef = null;
+  let fbAuth = null;
   if(FIREBASE_ENABLED){
     try{
       firebase.initializeApp(FIREBASE_CONFIG);
       fbRef = firebase.database();
+      fbAuth = firebase.auth();
     }catch(e){ console.error('Firebase init failed', e); }
   }
 
-  // ---------- default database (from 댕댕셔틀 주소록) ----------
-  const DEFAULT_DB = [
-    {name:"크림", breed:"푸들", address:"정평로 61 성지아파트 503동 1204호", access:"", note:"", cage:""},
-    {name:"오복", breed:"믹스", address:"신봉1로 27 서흥마을우남 510동 907호", access:"공동현관: 오른쪽 아래 '공동현관 비밀번호' → 1010# / 집: 9712288", note:"", cage:""},
-    {name:"아리", breed:"비숑", address:"수지구 상현로 142 성복역아이파크 1001동 302호", access:"공동현관: #302#0306 / 집: 19914260", note:"", cage:""},
-    {name:"봉식", breed:"비숑", address:"경기 용인시 기흥구 구성로 15 e편한세상구성역플랫폼시티아파트 108동 501호", access:"지하주차장 P1 이용, 엘베에서 내리면 바로 맞은편 / 공동현관: 501★1090 / 집: 871106", note:"지하주차장(P1) 이용, 엘베 내리면 맞은편", cage:""},
-    {name:"봄이", breed:"비숑", address:"구성역플랫폼시티아파트 105동 (지하주차장)", access:"지하주차장 이용", note:"봄시아파트 105동", cage:""},
-    {name:"휴지", breed:"비숑", address:"연원마을 LG아파트 103동 204호", access:"", note:"", cage:""},
-    {name:"한우", breed:"비숑", address:"대지마을 종앙하이츠빌아파트 101동 301호", access:"우주(101동 301호)", note:"보리와 같은 단지", cage:""},
-    {name:"보리", breed:"푸들", address:"대지마을 종앙하이츠빌아파트 102동 1401호", access:"보리(102동 1401호)", note:"한우와 같은 단지", cage:""},
-    {name:"모모", breed:"푸들", address:"미금역 천사의 도시1오피스텔과 맞은편 CU 사이 골목길", access:"314호 / 870099*", note:"지하 2층 끝까지 오피스텔 엘리베이터", cage:""},
-    {name:"뚜비", breed:"웰시코기", address:"신촌마을 상록데시앙 103동 1202호", access:"차단기 비밀번호: 4365 / 공동현관: #*3109# / 집: 260286*", note:"아파트 차단기 비밀번호 필요", cage:""},
-    {name:"로아", breed:"말티푸", address:"경기 용인시 기흥구 죽전로 12 죽전로얄듀크 302동 403호", access:"공동현관: 505#3227 / 집: 987704", note:"로아 언니 서희 010-7687-1523", cage:""},
-    {name:"밤이", breed:"포메", address:"경기 용인시 기흥구 죽전로 50 (부루댁곡)", access:"", note:"", cage:""},
-    {name:"하찌", breed:"프렌치불독", address:"경기 용인시 수지구 풍덕천로140번길 5-12", access:"김과장 고깃집 계단 이용, 4층 맨 끝 / 집: 364636", note:"엘리베이터 없음, 계단 4층 맨 끝", cage:""},
-    {name:"박두식", breed:"비숑", address:"고동택부로 139 현대그린빌 101동 1702호", access:"", note:"", cage:""},
-    {name:"도치", breed:"포메", address:"교동마을 정광 105동 1602호 (마복로154번길 16)", access:"집: 0113*", note:"", cage:""},
-    {name:"시로", breed:"비숑", address:"교동마을 쌍용아파트 105동 1003호 (마복로154번길 23)", access:"", note:"", cage:""},
-    {name:"짜장", breed:"말티푸", address:"무지개마을광주 504동 502호", access:"", note:"", cage:""},
-    {name:"군밤", breed:"웰시코기", address:"경기 용인시 수지구 달맞이로 59 시온빌라트 5204", access:"공동현관: 홈2580 / 집: 980188", note:"종 버튼 사용", cage:""},
-    {name:"라온", breed:"말티푸", address:"경기 용인시 수지구 현암로125번길 11 (죽전철스테이트 1가든 1-2라인) 1501호", access:"", note:"1~2라인", cage:""},
-    {name:"또또", breed:"말티즈", address:"경기 용인시 수지구 현암로125번길 11 (죽전철스테이트 1가든 1-2라인) 1501호", access:"", note:"1~2라인", cage:""},
-    {name:"누룽지", breed:"말티푸", address:"도담마을 아이파크아파트 102동 1103호 (경기 용인시 수지구 대지로 82)", access:"집: 13605*", note:"", cage:""},
-    {name:"아이", breed:"믹스", address:"죽전동 1169-2 301호", access:"1층 공동현관: 사랑→열쇠→4258→종 / 집: 8087*", note:"종 버튼 사용", cage:""},
-    {name:"모모2", displayName:"모모(아이모모)", breed:"스피츠", address:"죽전동 1169-2 301호", access:"1층 공동현관: 사랑→열쇠→4258→종 / 집: 8087*", note:"종 버튼 사용, 아이와 같은 집", cage:""},
-    {name:"몽구", breed:"", address:"포스빌오피스텔 312호", access:"비번: 8892*", note:"A동 엘리베이터", cage:"", guardianSpot:"오리역 7번출구"}
-  ];
+  // ---------- dog database ----------
+  // NOTE: this file is hosted on a public GitHub repo, so nothing sensitive
+  // lives in the source anymore. The real dog list (addresses, door codes)
+  // is stored only inside Firebase, which is locked down by login + database
+  // rules. On first run (empty database) this starts as an empty list —
+  // import the private seed file into Firebase once via the console's
+  // "JSON 가져오기" feature, or add dogs one by one in the 주소록 관리 tab.
+  const DEFAULT_DB = [];
 
   let db = [];
   let schedule = []; // current parsed schedule for selected date
@@ -490,9 +507,10 @@
   }
 
   // ---------- storage adapter ----------
-  // Priority: Firebase Realtime Database (shared across everyone) →
-  // window.storage (only works inside a Claude artifact) →
-  // localStorage (this device only, last-resort fallback).
+  // Priority: Firebase Realtime Database (shared across everyone, stores
+  // real JS objects/arrays natively) → window.storage (only works inside a
+  // Claude artifact, stores strings) → localStorage (this device only,
+  // last-resort fallback, stores strings).
   const hasWidgetStorage = (typeof window !== 'undefined') && !!window.storage;
 
   function fbPath(key){
@@ -500,7 +518,8 @@
     return key.replace(/[.#$\[\]]/g, '_');
   }
 
-  async function storageGet(key){
+  // Returns a parsed JS value (object/array/etc) or null.
+  async function storageGetValue(key){
     if(FIREBASE_ENABLED && fbRef){
       try{
         const snap = await fbRef.ref(fbPath(key)).once('value');
@@ -508,52 +527,58 @@
         return (v === null || v === undefined) ? null : v;
       }catch(e){ console.error('firebase get failed', e); return null; }
     }
+    let raw = null;
     if(hasWidgetStorage){
       try{
         const res = await window.storage.get(key, true);
-        return (res && res.value) ? res.value : null;
-      }catch(e){ return null; }
+        raw = (res && res.value) ? res.value : null;
+      }catch(e){ raw = null; }
+    } else {
+      try{ raw = localStorage.getItem(key); }catch(e){ raw = null; }
     }
-    try{ return localStorage.getItem(key); }catch(e){ return null; }
+    if(raw === null) return null;
+    try{ return JSON.parse(raw); }catch(e){ return null; }
   }
 
-  async function storageSet(key, value){
+  // Accepts a JS value (object/array/etc) and persists it.
+  async function storageSetValue(key, value){
     if(FIREBASE_ENABLED && fbRef){
       try{ await fbRef.ref(fbPath(key)).set(value); return true; }
       catch(e){ console.error('firebase set failed', e); return false; }
     }
+    const raw = JSON.stringify(value);
     if(hasWidgetStorage){
-      try{ await window.storage.set(key, value, true); return true; }
+      try{ await window.storage.set(key, raw, true); return true; }
       catch(e){ console.error('storage.set failed', e); return false; }
     }
-    try{ localStorage.setItem(key, value); return true; }
+    try{ localStorage.setItem(key, raw); return true; }
     catch(e){ console.error('localStorage.setItem failed', e); return false; }
   }
 
   // live sync: when Firebase is on, re-render automatically when someone
-  // else changes the data
+  // else changes the data. onChange receives the parsed value directly.
   function watchLive(key, onChange){
-    if(!(FIREBASE_ENABLED && fbRef)) return;
-    fbRef.ref(fbPath(key)).on('value', (snap)=>{
+    if(!(FIREBASE_ENABLED && fbRef)) return null;
+    const ref = fbRef.ref(fbPath(key));
+    ref.on('value', (snap)=>{
       const v = snap.val();
       if(v !== null && v !== undefined) onChange(v);
     });
+    return ref;
   }
 
   async function loadDB(){
-    let stored = null;
-    const raw = await storageGet('dog-database');
-    if(raw){
-      try{ stored = JSON.parse(raw); }catch(e){ stored = null; }
-    }
+    let stored = await storageGetValue('dog-database');
+    if(!Array.isArray(stored)) stored = null;
 
     if(!stored){
       db = JSON.parse(JSON.stringify(DEFAULT_DB));
-      await saveDB();
+      if(db.length) await saveDB();
       return;
     }
 
-    // merge in any default dogs the saved DB is missing (e.g. newly added dogs)
+    // merge in any default dogs the saved DB is missing (only relevant if
+    // DEFAULT_DB is ever populated again — currently empty by design)
     let changed = false;
     DEFAULT_DB.forEach(def=>{
       if(!stored.find(d=>d.name===def.name)){
@@ -566,19 +591,16 @@
   }
 
   async function saveDB(){
-    await storageSet('dog-database', JSON.stringify(db));
+    await storageSetValue('dog-database', db);
   }
 
   async function loadSchedule(dateStr){
-    const raw = await storageGet('schedule:'+dateStr);
-    if(raw){
-      try{ schedule = JSON.parse(raw); return; }catch(e){}
-    }
-    schedule = [];
+    const stored = await storageGetValue('schedule:'+dateStr);
+    schedule = Array.isArray(stored) ? stored : [];
   }
 
   async function saveSchedule(){
-    const ok = await storageSet('schedule:'+currentDate, JSON.stringify(schedule));
+    const ok = await storageSetValue('schedule:'+currentDate, schedule);
     if(ok) showSaved('저장됨 ✓');
   }
 
@@ -820,16 +842,14 @@
     updateSyncBanner();
 
     // live updates from other people
-    watchLive('dog-database', (raw)=>{
-      try{ db = JSON.parse(raw); renderDB(); }catch(e){}
+    watchLive('dog-database', (v)=>{
+      if(Array.isArray(v)){ db = v; renderDB(); }
     });
     if(FIREBASE_ENABLED && fbRef){
       scheduleListenerRef = fbRef.ref(fbPath('schedule:'+currentDate));
       scheduleListenerRef.on('value', (snap)=>{
         const v = snap.val();
-        if(v !== null && v !== undefined){
-          try{ schedule = JSON.parse(v); renderTimeline(); }catch(e){}
-        }
+        if(Array.isArray(v)){ schedule = v; renderTimeline(); }
       });
     }
 
@@ -848,9 +868,7 @@
         scheduleListenerRef = fbRef.ref(fbPath('schedule:'+currentDate));
         scheduleListenerRef.on('value', (snap)=>{
           const v = snap.val();
-          if(v !== null && v !== undefined){
-            try{ schedule = JSON.parse(v); renderTimeline(); }catch(e){}
-          }
+          if(Array.isArray(v)){ schedule = v; renderTimeline(); }
         });
       }
     });
@@ -867,6 +885,55 @@
     });
   }
 
-  init();
+  let appStarted = false;
+
+  function showGate(msg){
+    $('#dsw-app-shell').style.display = 'none';
+    $('#dsw-gate').style.display = 'flex';
+    $('#dsw-gate-msg').textContent = msg || '';
+  }
+
+  function showApp(){
+    $('#dsw-gate').style.display = 'none';
+    $('#dsw-app-shell').style.display = 'flex';
+    if(!appStarted){
+      appStarted = true;
+      init();
+    }
+  }
+
+  // ---------- auth flow ----------
+  if(FIREBASE_ENABLED && fbAuth){
+    $('#dsw-google-login').addEventListener('click', ()=>{
+      const provider = new firebase.auth.GoogleAuthProvider();
+      fbAuth.signInWithRedirect(provider);
+    });
+    $('#dsw-logout-btn').addEventListener('click', ()=>{
+      fbAuth.signOut();
+    });
+
+    fbAuth.getRedirectResult().catch((e)=>{
+      console.error('login redirect failed', e);
+      showGate('로그인에 실패했어요. 다시 시도해주세요.');
+    });
+
+    fbAuth.onAuthStateChanged((user)=>{
+      if(user){
+        if(ALLOWED_EMAILS.includes(user.email)){
+          showApp();
+        } else {
+          fbAuth.signOut();
+          showGate('이 구글 계정(' + user.email + ')은 접근 권한이 없어요.');
+        }
+      } else {
+        showGate();
+      }
+    });
+  } else {
+    // Firebase not configured (e.g. testing locally) — skip login, just run the app
+    showApp();
+  }
 })();
 </script>
+</body>
+</html>
