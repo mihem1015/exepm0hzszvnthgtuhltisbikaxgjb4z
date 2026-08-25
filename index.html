@@ -211,9 +211,12 @@
   .dsw-itemcard{
     background:var(--card);
     border:1px solid var(--line);
+    border-left:6px solid var(--home);
     border-radius:14px;
     padding:12px 14px;
+    transition:border-color .15s ease, box-shadow .15s ease;
   }
+  .dsw-item.guardian .dsw-itemcard{border-left-color:var(--guardian);}
   .dsw-item-top{
     display:flex;
     align-items:baseline;
@@ -238,22 +241,47 @@
   }
   .dsw-toggle{
     display:flex;
-    border-radius:8px;
+    border-radius:9px;
     overflow:hidden;
     border:1px solid var(--line);
     flex-shrink:0;
+    background:#F4EFE6;
   }
   .dsw-toggle button{
     border:none;
-    padding:6px 10px;
-    font-size:12px;
-    font-weight:700;
-    background:#fff;
-    color:var(--ink-soft);
+    padding:7px 11px;
+    font-size:12.5px;
+    font-weight:800;
+    background:transparent;
+    color:#B9AA96;
     cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+    -webkit-tap-highlight-color:transparent;
   }
-  .dsw-toggle button.on.home{background:var(--home-bg);color:var(--home);}
-  .dsw-toggle button.on.guardian{background:var(--guardian-bg);color:var(--guardian);}
+  .dsw-toggle button.on{
+    color:#fff;
+    box-shadow:0 1px 4px rgba(0,0,0,0.16);
+  }
+  .dsw-toggle button.on.home{background:var(--home);}
+  .dsw-toggle button.on.guardian{background:var(--guardian);}
+  .dsw-toggle button:active{transform:scale(0.96);}
+
+  .dsw-typetag{
+    display:inline-block;
+    padding:2px 8px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:800;
+  }
+  .dsw-subline{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    margin-top:5px;
+    flex-wrap:wrap;
+  }
+  .dsw-typetag.home{background:var(--home-bg);color:var(--home);}
+  .dsw-typetag.guardian{background:var(--guardian-bg);color:#B96A2E;}
 
   .dsw-body{
     margin-top:8px;
@@ -373,6 +401,59 @@
     margin-top:6px;
     min-height:14px;
   }
+
+  /* --- owner (담당자) --- */
+  .dsw-textinput{
+    width:100%;
+    padding:9px 10px;
+    border-radius:9px;
+    border:1px solid var(--line);
+    font-size:14px;
+    background:#fff;
+    color:var(--ink);
+  }
+  .dsw-ownerchips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin-bottom:10px;
+  }
+  .dsw-chip{
+    padding:6px 11px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--ink-soft);
+    font-size:12.5px;
+    font-weight:700;
+    cursor:pointer;
+  }
+  .dsw-chip.on{
+    background:var(--brown);
+    border-color:var(--brown);
+    color:#fff;
+  }
+  .dsw-grouphead{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin:4px 0 10px;
+    padding:8px 12px;
+    background:#F4EADB;
+    border-radius:10px;
+  }
+  .dsw-grouphead .gname{
+    font-size:14px;
+    font-weight:800;
+    color:var(--brown-dark);
+  }
+  .dsw-grouphead .gcount{
+    font-size:11.5px;
+    font-weight:700;
+    color:var(--ink-soft);
+  }
+  .dsw-group{margin-bottom:18px;}
 </style>
 </head>
 <body>
@@ -401,7 +482,10 @@
   <div class="dsw-topfixed">
     <div class="dsw-header"><span class="paw">🐾</span><span class="dsw-title">댕댕셔틀 일정표</span></div>
     <p class="dsw-sub">일정 메시지를 붙여넣으면 시간순으로 정리돼요</p>
-    <p id="dsw-syncstatus" style="font-size:11px;font-weight:700;margin:0 0 10px 0;"></p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px 0;">
+      <p id="dsw-syncstatus" style="font-size:11px;font-weight:700;margin:0;"></p>
+      <button id="dsw-sound-btn" style="flex-shrink:0;border:1px solid #E9DFCF;background:#fff;border-radius:999px;padding:5px 10px;font-size:11.5px;font-weight:700;color:#8A7A68;cursor:pointer;">🔊 효과음</button>
+    </div>
 
     <div class="dsw-tabs">
       <div class="dsw-tab active" data-tab="input">일정 입력</div>
@@ -418,13 +502,19 @@
         <div class="dsw-datebox">
           <input type="date" id="dsw-date"/>
         </div>
+        <span class="dsw-card-label">담당자 (누구의 타임라인인가요?)</span>
+        <div class="dsw-datebox">
+          <input type="text" id="dsw-owner" class="dsw-textinput" list="dsw-owner-list" placeholder="예: 미혜 / 1호차 / 오전조"/>
+        </div>
+        <datalist id="dsw-owner-list"></datalist>
+
         <span class="dsw-card-label">일정 메시지 붙여넣기</span>
         <textarea class="dsw-input" id="dsw-raw" placeholder="예)
 몽구 ㅡ8시15분(보호자)
 로아 ㅡ8시30(집)
 하찌 ㅡ8시45(집)
 보리 ㅡ9시5분(보호자)"></textarea>
-        <div class="dsw-hint">이름, 시간, (보호자)/(집) 형식이면 자동으로 인식돼요. 괄호를 안 써도 저장된 정보로 기본값을 추정해요.</div>
+        <div class="dsw-hint">이름, 시간, (보호자)/(집) 형식이면 자동으로 인식돼요. 괄호를 안 써도 저장된 정보로 기본값을 추정해요.<br/>담당자 이름을 적으면 그 사람의 타임라인으로 묶여서 보여요. 기존 일정은 지워지지 않고 <b>뒤에 추가</b>되며, 삭제는 × 버튼으로만 돼요.</div>
         <button class="dsw-btn" id="dsw-parse-btn">일정 정리하기 →</button>
       </div>
     </div>
@@ -499,9 +589,103 @@
   const $ = (sel, root) => (root||document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root||document).querySelectorAll(sel));
 
+  // ---------- 효과음 (Web Audio) ----------
+  // 짧은 톤을 즉석에서 합성해서 쓴다. 오디오 파일이 없으니 로딩도 없고,
+  // iOS는 사용자 제스처 안에서 AudioContext를 만들어야 소리가 나므로
+  // 첫 터치(pointerdown)에서 컨텍스트를 깨워둔다.
+  const SoundFX = (function(){
+    let ctx = null;
+    let on = true;
+    try{ on = (localStorage.getItem('dsw-sound') !== 'off'); }catch(e){}
+
+    function ensure(){
+      if(!on) return null;
+      if(!ctx){
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC) return null;
+        try{ ctx = new AC(); }catch(e){ return null; }
+      }
+      if(ctx.state === 'suspended'){ try{ ctx.resume(); }catch(e){} }
+      return ctx;
+    }
+
+    // freq: 시작 주파수, to: 끝 주파수(글라이드), t0: 시작 지연(초)
+    function tone(freq, to, dur, t0, vol, type){
+      const c = ensure();
+      if(!c) return;
+      const start = c.currentTime + (t0||0);
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      if(to && to !== freq) osc.frequency.exponentialRampToValueAtTime(to, start + dur);
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(vol || 0.14, start + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      osc.connect(gain).connect(c.destination);
+      osc.start(start);
+      osc.stop(start + dur + 0.02);
+    }
+
+    function play(name){
+      if(!on) return;
+      switch(name){
+        case 'tap':      tone(760, 700, 0.05, 0, 0.10, 'triangle'); break;
+        case 'home':     tone(523, 523, 0.07, 0, 0.13, 'sine');
+                         tone(784, 784, 0.10, 0.055, 0.12, 'sine'); break;
+        case 'guardian': tone(392, 392, 0.07, 0, 0.13, 'sine');
+                         tone(587, 587, 0.10, 0.055, 0.12, 'sine'); break;
+        case 'del':      tone(320, 130, 0.16, 0, 0.13, 'sawtooth'); break;
+        case 'success':  tone(523, 523, 0.08, 0, 0.13, 'triangle');
+                         tone(659, 659, 0.08, 0.07, 0.13, 'triangle');
+                         tone(880, 880, 0.16, 0.14, 0.13, 'triangle'); break;
+        case 'toggleoff':tone(600, 300, 0.10, 0, 0.11, 'triangle'); break;
+      }
+    }
+
+    return {
+      play: play,
+      ensure: ensure,
+      isOn: function(){ return on; },
+      set: function(v){
+        on = !!v;
+        try{ localStorage.setItem('dsw-sound', on ? 'on' : 'off'); }catch(e){}
+        if(on) play('tap');
+      }
+    };
+  })();
+
+  // 첫 터치에서 오디오 잠금 해제
+  document.addEventListener('pointerdown', function(){ SoundFX.ensure(); }, true);
+
+  // 버튼을 누르면 소리가 나게 한다. capture 단계에서 처리하므로
+  // confirm() 같은 블로킹 대화상자보다 소리가 먼저 시작된다.
+  document.addEventListener('click', function(e){
+    const t = e.target.closest ? e.target.closest('button, .dsw-tab, .dsw-addbtn, .dsw-dbitem-head') : null;
+    if(!t) return;
+    if(t.id === 'dsw-sound-btn') return;              // 자체 핸들러에서 처리
+    if(t.classList.contains('dsw-del-btn') || t.id === 'dsw-clear-all-btn'){ SoundFX.play('del'); return; }
+    if(t.closest('.dsw-toggle')){
+      SoundFX.play(t.getAttribute('data-val') === 'guardian' ? 'guardian' : 'home');
+      return;
+    }
+    if(t.id === 'dsw-parse-btn'){ SoundFX.play('success'); return; }
+    SoundFX.play('tap');
+  }, true);
+
+  function renderSoundBtn(){
+    const b = $('#dsw-sound-btn');
+    if(!b) return;
+    const on = SoundFX.isOn();
+    b.textContent = on ? '🔊 효과음' : '🔇 음소거';
+    b.style.color = on ? '#7A5A3A' : '#B9AA96';
+    b.style.background = on ? '#F4EADB' : '#fff';
+  }
+
   function showSaved(msg){
     const el = $('#dsw-saved');
     el.textContent = msg || '저장됨';
+    el.style.color = (msg && msg.indexOf('⚠️') === 0) ? '#B3541E' : '#4C8A5E';
     clearTimeout(showSaved._t);
     showSaved._t = setTimeout(()=>{ el.textContent=''; }, 1500);
   }
@@ -540,8 +724,24 @@
     try{ return JSON.parse(raw); }catch(e){ return null; }
   }
 
+  // Firebase's set() throws if ANY property is undefined, which used to make
+  // every save fail silently — that's why the timeline looked empty after a
+  // refresh. Strip undefined out before writing.
+  function sanitize(v){
+    if(Array.isArray(v)) return v.map(x=>sanitize(x));
+    if(v && typeof v === 'object'){
+      const out = {};
+      Object.keys(v).forEach(k=>{
+        if(v[k] !== undefined) out[k] = sanitize(v[k]);
+      });
+      return out;
+    }
+    return (v === undefined) ? null : v;
+  }
+
   // Accepts a JS value (object/array/etc) and persists it.
   async function storageSetValue(key, value){
+    value = sanitize(value);
     if(FIREBASE_ENABLED && fbRef){
       try{ await fbRef.ref(fbPath(key)).set(value); return true; }
       catch(e){ console.error('firebase set failed', e); return false; }
@@ -594,14 +794,88 @@
     await storageSetValue('dog-database', db);
   }
 
+  // Entries that came back from storage may be missing fields (older saves),
+  // so fill every field in. Anything undefined here would break saving later.
+  function normalizeEntries(arr){
+    if(!Array.isArray(arr)) return [];
+    return arr.filter(x=>x && typeof x === 'object').map(x=>({
+      id: x.id || ('e'+Date.now()+Math.random().toString(36).slice(2,7)),
+      name: x.name || '',
+      matchedKey: x.matchedKey || null,
+      breed: x.breed || '',
+      address: x.address || '',
+      access: x.access || '',
+      note: x.note || '',
+      cage: x.cage || '',
+      hour: (x.hour === null || x.hour === undefined) ? null : x.hour,
+      min: x.min || 0,
+      type: (x.type === 'guardian') ? 'guardian' : 'home',
+      guardianLocation: x.guardianLocation || '',
+      owner: x.owner || '',
+      matched: !!x.matched
+    }));
+  }
+
+  function sortSchedule(arr){
+    return arr.slice().sort((a,b)=>{
+      const ao = (a.owner||'').localeCompare(b.owner||'', 'ko');
+      if(ao !== 0) return ao;
+      const av = (a.hour==null) ? 9999 : a.hour*60+(a.min||0);
+      const bv = (b.hour==null) ? 9999 : b.hour*60+(b.min||0);
+      return av-bv;
+    });
+  }
+
+  // 주소록에 나중에 추가/수정한 주소·출입정보를 이미 만들어둔 일정에도 반영
+  function refreshFromDB(){
+    schedule.forEach(it=>{
+      const dog = it.matchedKey ? db.find(d=>d.name===it.matchedKey) : findDog(it.name);
+      if(!dog) return;
+      it.matchedKey = dog.name;
+      it.matched = true;
+      it.address = dog.address || it.address || '';
+      it.access = dog.access || it.access || '';
+      it.breed = dog.breed || it.breed || '';
+      it.note = dog.note || it.note || '';
+      if(!it.cage) it.cage = dog.cage || '';
+      if(!it.guardianLocation) it.guardianLocation = dog.guardianSpot || '';
+    });
+  }
+
+  // 마지막으로 보던 날짜/담당자를 기억해서 새로고침해도 그대로 열리게 한다
+  function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+
+  function knownOwners(){
+    let list = [];
+    try{ list = JSON.parse(lsGet('dsw-owners')||'[]'); }catch(e){ list = []; }
+    if(!Array.isArray(list)) list = [];
+    schedule.forEach(it=>{ if(it.owner && !list.includes(it.owner)) list.push(it.owner); });
+    return list;
+  }
+  function rememberOwner(name){
+    if(!name) return;
+    const list = knownOwners();
+    if(!list.includes(name)) list.push(name);
+    lsSet('dsw-owners', JSON.stringify(list));
+    lsSet('dsw-last-owner', name);
+  }
+  function renderOwnerDatalist(){
+    const dl = $('#dsw-owner-list');
+    if(!dl) return;
+    dl.innerHTML = knownOwners().map(o=>'<option value="'+esc(o)+'"></option>').join('');
+  }
+
   async function loadSchedule(dateStr){
     const stored = await storageGetValue('schedule:'+dateStr);
-    schedule = Array.isArray(stored) ? stored : [];
+    schedule = normalizeEntries(stored);
+    lsSet('dsw-last-date', dateStr);
   }
 
   async function saveSchedule(){
     const ok = await storageSetValue('schedule:'+currentDate, schedule);
     if(ok) showSaved('저장됨 ✓');
+    else showSaved('⚠️ 저장 실패 — 인터넷 연결을 확인해주세요');
   }
 
   function findDog(name){
@@ -652,7 +926,7 @@
     return entries;
   }
 
-  function buildScheduleFromParsed(parsed){
+  function buildScheduleFromParsed(parsed, owner){
     return parsed.map(p=>{
       const dog = findDog(p.rawName);
       let type = p.type;
@@ -671,13 +945,10 @@
         hour: p.hour,
         min: p.min,
         type: type,
-        guardianLocation: (dog && dog.guardianSpot) ? dog.guardianSpot : ((dog && dog.address) ? dog.address : ''),
+        guardianLocation: (dog && dog.guardianSpot) ? dog.guardianSpot : '',
+        owner: (owner||'').trim(),
         matched: !!dog
       };
-    }).sort((a,b)=>{
-      const av = (a.hour==null) ? 9999 : a.hour*60+a.min;
-      const bv = (b.hour==null) ? 9999 : b.hour*60+b.min;
-      return av-bv;
     });
   }
 
@@ -688,48 +959,121 @@
   }
 
   // ---------- render timeline ----------
+  let ownerFilter = 'all';
+  const NO_OWNER = '담당자 미지정';
+
+  function ownerOf(it){
+    const o = (it.owner||'').trim();
+    return o || NO_OWNER;
+  }
+
+  // 픽업지가 비어 있으면 집 주소를 대신 보여준다 (공란 방지)
+  function pickupOf(it){
+    return (it.guardianLocation||'').trim() || (it.address||'').trim() || '';
+  }
+
   function renderTimeline(){
     const wrap = $('#dsw-timeline-wrap');
     if(!schedule.length){
-      wrap.innerHTML = '<div class="dsw-empty">아직 정리된 일정이 없어요.<br/>‘일정 입력’ 탭에서 메시지를 붙여넣어 주세요 🐶</div>';
+      wrap.innerHTML = '<div class="dsw-empty">아직 정리된 일정이 없어요.<br/>\u2018일정 입력\u2019 탭에서 메시지를 붙여넣어 주세요 🐶</div>';
       return;
     }
-    let html = '<div style="text-align:right;margin-bottom:8px;"><button id="dsw-clear-all-btn" style="border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;">전체 삭제</button></div>';
-    html += '<div class="dsw-timeline">';
-    schedule.forEach((it, idx)=>{
-      const cls = !it.matched ? 'unknown' : (it.type==='guardian' ? 'guardian':'');
-      html += '<div class="dsw-item '+cls+'" data-id="'+it.id+'">';
-      html += '<div class="dsw-dot"></div>';
-      html += '<div class="dsw-itemcard">';
-      html += '<div class="dsw-item-top">';
-      html += '<div><span class="dsw-time">'+fmtTime(it.hour,it.min)+'</span><span class="dsw-name">'+(idx+1)+'. '+esc(it.name)+'</span>' + (it.breed?('<div class="dsw-breed">'+esc(it.breed)+'</div>'):'') + '</div>';
-      html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
-      html += '<div class="dsw-toggle">';
-      html += '<button data-act="type" data-val="home" class="'+(it.type==='home'?'on home':'')+'">집</button>';
-      html += '<button data-act="type" data-val="guardian" class="'+(it.type==='guardian'?'on guardian':'')+'">보호자</button>';
-      html += '</div>';
-      html += '<button class="dsw-del-btn" data-del-id="'+it.id+'" style="border:none;background:#FDEDE2;color:#B3541E;width:26px;height:26px;border-radius:7px;font-size:15px;font-weight:800;cursor:pointer;line-height:1;">×</button>';
-      html += '</div></div>';
 
-      html += '<div class="dsw-body">';
-      if(!it.matched){
-        html += '<div class="dsw-unmatched">⚠️ 주소록에 없는 이름이에요. 주소록 관리 탭에서 추가하면 다음부터 자동으로 채워져요.</div>';
+    // 담당자별 그룹 만들기
+    const owners = [];
+    schedule.forEach(it=>{
+      const o = ownerOf(it);
+      if(!owners.includes(o)) owners.push(o);
+    });
+    owners.sort((a,b)=>{
+      if(a===NO_OWNER) return 1;
+      if(b===NO_OWNER) return -1;
+      return a.localeCompare(b,'ko');
+    });
+    if(ownerFilter!=='all' && !owners.includes(ownerFilter)) ownerFilter = 'all';
+
+    const visibleOwners = (ownerFilter==='all') ? owners : [ownerFilter];
+    const visibleCount = schedule.filter(it=> visibleOwners.includes(ownerOf(it))).length;
+
+    let html = '';
+
+    // 담당자 필터 칩
+    if(owners.length > 1){
+      html += '<div class="dsw-ownerchips">';
+      html += '<button class="dsw-chip '+(ownerFilter==='all'?'on':'')+'" data-owner="all">전체 ('+schedule.length+')</button>';
+      owners.forEach(o=>{
+        const cnt = schedule.filter(it=>ownerOf(it)===o).length;
+        html += '<button class="dsw-chip '+(ownerFilter===o?'on':'')+'" data-owner="'+esc(o)+'">'+esc(o)+' ('+cnt+')</button>';
+      });
+      html += '</div>';
+    }
+
+    const delLabel = (ownerFilter==='all') ? '전체 삭제' : esc(ownerFilter)+' 일정 삭제';
+    html += '<div style="text-align:right;margin-bottom:8px;"><button id="dsw-clear-all-btn" style="border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;">'+delLabel+'</button></div>';
+
+    visibleOwners.forEach(o=>{
+      const items = schedule.filter(it=>ownerOf(it)===o);
+      if(!items.length) return;
+
+      html += '<div class="dsw-group">';
+      if(owners.length > 1 || o !== NO_OWNER){
+        html += '<div class="dsw-grouphead"><span class="gname">🚐 '+esc(o)+'</span><span class="gcount">'+items.length+'마리</span></div>';
       }
-      if(it.type === 'home'){
+      html += '<div class="dsw-timeline">';
+
+      items.forEach((it, idx)=>{
+        const cls = !it.matched ? 'unknown' : (it.type==='guardian' ? 'guardian':'');
+        html += '<div class="dsw-item '+cls+'" data-id="'+it.id+'">';
+        html += '<div class="dsw-dot"></div>';
+        html += '<div class="dsw-itemcard">';
+        html += '<div class="dsw-item-top">';
+        html += '<div><span class="dsw-time">'+fmtTime(it.hour,it.min)+'</span><span class="dsw-name">'+(idx+1)+'. '+esc(it.name)+'</span>'
+             + '<div class="dsw-subline"><span class="dsw-typetag '+(it.type==='guardian'?'guardian':'home')+'">'+(it.type==='guardian'?'보호자 픽업':'집 픽업')+'</span>'
+             + (it.breed?('<span class="dsw-breed">'+esc(it.breed)+'</span>'):'') + '</div></div>';
+        html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
+        html += '<div class="dsw-toggle">';
+        html += '<button data-act="type" data-val="home" class="'+(it.type==='home'?'on home':'')+'">'+(it.type==='home'?'✓ 집':'집')+'</button>';
+        html += '<button data-act="type" data-val="guardian" class="'+(it.type==='guardian'?'on guardian':'')+'">'+(it.type==='guardian'?'✓ 보호자':'보호자')+'</button>';
+        html += '</div>';
+        html += '<button class="dsw-del-btn" data-del-id="'+it.id+'" style="border:none;background:#FDEDE2;color:#B3541E;width:26px;height:26px;border-radius:7px;font-size:15px;font-weight:800;cursor:pointer;line-height:1;">×</button>';
+        html += '</div></div>';
+
+        html += '<div class="dsw-body">';
+        if(!it.matched){
+          html += '<div class="dsw-unmatched">⚠️ 주소록에 없는 이름이에요. 주소록 관리 탭에서 추가하면 다음부터 자동으로 채워져요.</div>';
+        }
+
+        if(it.type === 'guardian'){
+          // 보호자 픽업이어도 주소와 출입 정보를 함께 보여준다
+          html += '<div class="dsw-row"><span class="k">픽업지</span><span class="v"><input class="dsw-guard-input" data-id="'+it.id+'" placeholder="예: 오리역 7번 출구 앞" value="'+esc(pickupOf(it))+'" style="width:100%;border:1px solid var(--line);border-radius:7px;padding:5px 7px;font-size:12.5px;"/></span></div>';
+        }
         if(it.address) html += '<div class="dsw-row"><span class="k">주소</span><span class="v">'+esc(it.address)+'</span></div>';
         if(it.access) html += '<div class="dsw-row"><span class="k">출입</span><span class="v">'+esc(it.access)+'</span></div>';
-      } else {
-        html += '<div class="dsw-row"><span class="k">픽업지</span><span class="v"><input class="dsw-guard-input" data-id="'+it.id+'" placeholder="예: 오리역 7번 출구 앞" value="'+esc(it.guardianLocation||'')+'" style="width:100%;border:1px solid var(--line);border-radius:7px;padding:5px 7px;font-size:12.5px;"/></span></div>';
-      }
-      if(it.note) html += '<div class="dsw-note">📌 '+esc(it.note)+'</div>';
-      html += '<div class="dsw-editrow">';
-      html += '<input data-cage-id="'+it.id+'" placeholder="캔넬 크기 (예: 작은 캔넬)" value="'+esc(it.cage||'')+'"/>';
-      html += '</div>';
-      html += '</div>'; // body
-      html += '</div></div>';
+
+        if(it.note) html += '<div class="dsw-note">📌 '+esc(it.note)+'</div>';
+        html += '<div class="dsw-editrow">';
+        html += '<input data-cage-id="'+it.id+'" placeholder="캔넬 크기 (예: 작은 캔넬)" value="'+esc(it.cage||'')+'"/>';
+        html += '<input data-owner-id="'+it.id+'" placeholder="담당자" value="'+esc(it.owner||'')+'" style="max-width:38%;"/>';
+        html += '</div>';
+        html += '</div>'; // body
+        html += '</div></div>';
+      });
+
+      html += '</div></div>'; // timeline, group
     });
-    html += '</div>';
+
+    if(!visibleCount){
+      html += '<div class="dsw-empty">이 담당자의 일정이 없어요.</div>';
+    }
+
     wrap.innerHTML = html;
+
+    $$('.dsw-chip', wrap).forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        ownerFilter = chip.getAttribute('data-owner');
+        renderTimeline();
+      });
+    });
 
     $$('.dsw-toggle button', wrap).forEach(btn=>{
       btn.addEventListener('click', async (e)=>{
@@ -767,6 +1111,20 @@
         }
       });
     });
+    $$('[data-owner-id]', wrap).forEach(inp=>{
+      inp.addEventListener('change', async (e)=>{
+        const id = e.target.getAttribute('data-owner-id');
+        const entry = schedule.find(s=>s.id===id);
+        if(entry){
+          entry.owner = e.target.value.trim();
+          rememberOwner(entry.owner);
+          schedule = sortSchedule(schedule);
+          renderOwnerDatalist();
+          renderTimeline();
+          await saveSchedule();
+        }
+      });
+    });
     $$('.dsw-del-btn', wrap).forEach(btn=>{
       btn.addEventListener('click', async (e)=>{
         const id = e.target.getAttribute('data-del-id');
@@ -781,9 +1139,14 @@
     const clearAllBtn = $('#dsw-clear-all-btn', wrap);
     if(clearAllBtn){
       clearAllBtn.addEventListener('click', async ()=>{
-        const ok = confirm('이 날짜의 일정을 전부 삭제할까요?');
-        if(!ok) return;
-        schedule = [];
+        if(ownerFilter === 'all'){
+          if(!confirm('이 날짜의 일정을 전부 삭제할까요?')) return;
+          schedule = [];
+        } else {
+          if(!confirm('\u2018'+ownerFilter+'\u2019 담당 일정을 전부 삭제할까요?')) return;
+          schedule = schedule.filter(s=>ownerOf(s)!==ownerFilter);
+          ownerFilter = 'all';
+        }
         renderTimeline();
         await saveSchedule();
       });
@@ -865,28 +1228,51 @@
     }
   }
 
+  function attachScheduleListener(){
+    if(scheduleListenerRef){ scheduleListenerRef.off(); scheduleListenerRef = null; }
+    if(!(FIREBASE_ENABLED && fbRef)) return;
+    scheduleListenerRef = fbRef.ref(fbPath('schedule:'+currentDate));
+    scheduleListenerRef.on('value', (snap)=>{
+      const v = snap.val();
+      if(!Array.isArray(v)) return;
+      schedule = normalizeEntries(v);
+      refreshFromDB();
+      renderTimeline();
+    });
+  }
+
   async function init(){
+    // 새로고침해도 마지막에 보던 날짜를 그대로 열어준다
+    const savedDate = lsGet('dsw-last-date');
+    if(savedDate && /^\d{4}-\d{2}-\d{2}$/.test(savedDate)) currentDate = savedDate;
+
     $('#dsw-date').value = currentDate;
     await loadDB();
     await loadSchedule(currentDate);
+    refreshFromDB();
+
+    const lastOwner = lsGet('dsw-last-owner');
+    if(lastOwner) $('#dsw-owner').value = lastOwner;
+    renderOwnerDatalist();
+
     renderDB();
     renderTimeline();
     updateSyncBanner();
+    renderSoundBtn();
+
+    $('#dsw-sound-btn').addEventListener('click', ()=>{
+      SoundFX.set(!SoundFX.isOn());
+      renderSoundBtn();
+    });
     // 새로고침해도 저장된 일정이 있으면 타임라인 탭을 바로 보여준다
     // (그렇지 않으면 항상 '일정 입력' 탭으로 돌아가서 일정이 사라진 것처럼 보임)
     if(schedule.length){ switchTab('timeline'); }
 
     // live updates from other people
     watchLive('dog-database', (v)=>{
-      if(Array.isArray(v)){ db = v; renderDB(); }
+      if(Array.isArray(v)){ db = v; renderDB(); refreshFromDB(); renderTimeline(); }
     });
-    if(FIREBASE_ENABLED && fbRef){
-      scheduleListenerRef = fbRef.ref(fbPath('schedule:'+currentDate));
-      scheduleListenerRef.on('value', (snap)=>{
-        const v = snap.val();
-        if(Array.isArray(v)){ schedule = v; renderTimeline(); }
-      });
-    }
+    attachScheduleListener();
 
     $$('.dsw-tab').forEach(t=>{
       t.addEventListener('click', ()=> switchTab(t.getAttribute('data-tab')));
@@ -898,25 +1284,45 @@
       if(scheduleListenerRef){ scheduleListenerRef.off(); scheduleListenerRef = null; }
       currentDate = e.target.value;
       await loadSchedule(currentDate);
+      refreshFromDB();
+      ownerFilter = 'all';
       renderTimeline();
-      if(FIREBASE_ENABLED && fbRef){
-        scheduleListenerRef = fbRef.ref(fbPath('schedule:'+currentDate));
-        scheduleListenerRef.on('value', (snap)=>{
-          const v = snap.val();
-          if(Array.isArray(v)){ schedule = v; renderTimeline(); }
-        });
-      }
+      attachScheduleListener();
+    });
+
+    $('#dsw-owner').addEventListener('change', (e)=>{
+      rememberOwner(e.target.value.trim());
+      renderOwnerDatalist();
     });
 
     $('#dsw-parse-btn').addEventListener('click', async ()=>{
       const text = $('#dsw-raw').value;
       if(!text.trim()) return;
+      const owner = $('#dsw-owner').value.trim();
       const parsed = parseScheduleText(text);
-      const newEntries = buildScheduleFromParsed(parsed);
-      schedule = newEntries;
-      await saveSchedule();
+      const newEntries = buildScheduleFromParsed(parsed, owner);
+
+      // 기존 일정을 지우지 않고 뒤에 이어붙인다. 같은 담당자·이름·시간이면 중복으로 보고 건너뜀.
+      const added = [];
+      newEntries.forEach(ne=>{
+        const dup = schedule.find(s=>
+          (s.owner||'') === (ne.owner||'') &&
+          s.name === ne.name &&
+          s.hour === ne.hour &&
+          (s.min||0) === (ne.min||0)
+        );
+        if(!dup) added.push(ne);
+      });
+      schedule = sortSchedule(schedule.concat(added));
+
+      rememberOwner(owner);
+      renderOwnerDatalist();
+      ownerFilter = owner ? owner : 'all';
       renderTimeline();
       switchTab('timeline');
+      await saveSchedule();
+      showSaved(added.length + '개 추가됨' + (newEntries.length-added.length ? ' (중복 '+(newEntries.length-added.length)+'개 제외)' : ''));
+      $('#dsw-raw').value = '';
     });
   }
 
