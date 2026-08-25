@@ -671,7 +671,7 @@
         hour: p.hour,
         min: p.min,
         type: type,
-        guardianLocation: (dog && dog.guardianSpot) ? dog.guardianSpot : '',
+        guardianLocation: (dog && dog.guardianSpot) ? dog.guardianSpot : ((dog && dog.address) ? dog.address : ''),
         matched: !!dog
       };
     }).sort((a,b)=>{
@@ -737,7 +737,14 @@
         const id = item.getAttribute('data-id');
         const val = e.target.getAttribute('data-val');
         const entry = schedule.find(s=>s.id===id);
-        if(entry){ entry.type = val; renderTimeline(); await saveSchedule(); }
+        if(entry){
+          entry.type = val;
+          if(val==='guardian' && !entry.guardianLocation && entry.address){
+            entry.guardianLocation = entry.address;
+          }
+          renderTimeline();
+          await saveSchedule();
+        }
       });
     });
     $$('.dsw-guard-input', wrap).forEach(inp=>{
