@@ -317,10 +317,12 @@
   .dsw-editrow{
     margin-top:8px;
     display:flex;
+    flex-wrap:wrap;
     gap:6px;
   }
   .dsw-editrow input{
     flex:1;
+    min-width:96px;
     border:1px solid var(--line);
     border-radius:7px;
     padding:6px 8px;
@@ -436,22 +438,90 @@
   .dsw-grouphead{
     display:flex;
     align-items:center;
-    justify-content:space-between;
     gap:8px;
     margin:4px 0 10px;
-    padding:8px 12px;
+    padding:8px 11px;
     background:#F4EADB;
     border-radius:10px;
   }
+  .dsw-grouphead .gdate{
+    font-size:12px;
+    font-weight:800;
+    color:var(--brown);
+    font-variant-numeric:tabular-nums;
+  }
+  .dsw-grouphead .gtrip{
+    padding:3px 9px;
+    border-radius:999px;
+    font-size:11.5px;
+    font-weight:800;
+    color:#fff;
+    flex-shrink:0;
+  }
+  .dsw-grouphead .gtrip.go{background:#4C8A5E;}
+  .dsw-grouphead .gtrip.back{background:#8A6BB1;}
   .dsw-grouphead .gname{
     font-size:14px;
     font-weight:800;
     color:var(--brown-dark);
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
   .dsw-grouphead .gcount{
     font-size:11.5px;
     font-weight:700;
     color:var(--ink-soft);
+    margin-left:auto;
+    flex-shrink:0;
+  }
+
+  /* 등원/하원 선택 (일정 입력) */
+  .dsw-seg{
+    display:flex;
+    gap:8px;
+    margin-bottom:12px;
+  }
+  .dsw-seg button{
+    flex:1;
+    padding:11px 0;
+    border-radius:10px;
+    border:1.5px solid var(--line);
+    background:#fff;
+    color:#B9AA96;
+    font-size:14px;
+    font-weight:800;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .dsw-seg button.on[data-trip="go"]{
+    background:#4C8A5E;border-color:#4C8A5E;color:#fff;
+    box-shadow:0 2px 6px rgba(76,138,94,0.28);
+  }
+  .dsw-seg button.on[data-trip="back"]{
+    background:#8A6BB1;border-color:#8A6BB1;color:#fff;
+    box-shadow:0 2px 6px rgba(138,107,177,0.28);
+  }
+  .dsw-seg button:active{transform:scale(0.98);}
+  .dsw-triptag{
+    padding:2px 8px;
+    border-radius:999px;
+    font-size:11px;
+    font-weight:800;
+    color:#fff;
+  }
+  .dsw-triptag.go{background:#4C8A5E;}
+  .dsw-triptag.back{background:#8A6BB1;}
+  .dsw-editrow select{
+    border:1px solid var(--line);
+    border-radius:7px;
+    padding:6px 8px;
+    font-size:12.5px;
+    background:#FFFDF9;
+    color:var(--ink);
+    font-weight:700;
   }
   .dsw-group{margin-bottom:18px;}
 </style>
@@ -502,6 +572,12 @@
         <div class="dsw-datebox">
           <input type="date" id="dsw-date"/>
         </div>
+        <span class="dsw-card-label">등원 / 하원</span>
+        <div class="dsw-seg" id="dsw-trip">
+          <button type="button" data-trip="go" class="on">🌅 등원</button>
+          <button type="button" data-trip="back">🌆 하원</button>
+        </div>
+
         <span class="dsw-card-label">담당자 (누구의 타임라인인가요?)</span>
         <div class="dsw-datebox">
           <input type="text" id="dsw-owner" class="dsw-textinput" list="dsw-owner-list" placeholder="예: 미혜 / 1호차 / 오전조"/>
@@ -514,7 +590,7 @@
 로아 ㅡ8시30(집)
 하찌 ㅡ8시45(집)
 보리 ㅡ9시5분(보호자)"></textarea>
-        <div class="dsw-hint">이름, 시간, (보호자)/(집) 형식이면 자동으로 인식돼요. 괄호를 안 써도 저장된 정보로 기본값을 추정해요.<br/>담당자 이름을 적으면 그 사람의 타임라인으로 묶여서 보여요. 기존 일정은 지워지지 않고 <b>뒤에 추가</b>되며, 삭제는 × 버튼으로만 돼요.</div>
+        <div class="dsw-hint">이름, 시간, (보호자)/(집) 형식이면 자동으로 인식돼요. 괄호를 안 써도 저장된 정보로 기본값을 추정해요.<br/>메시지 안에 <b>‘등원’ / ‘하원’</b> 이라고 적힌 줄이 있으면 그 아래 줄들에 자동으로 적용돼요.<br/>담당자 이름을 적으면 그 사람의 타임라인으로 묶여서 보여요. 기존 일정은 지워지지 않고 <b>뒤에 추가</b>되며, 삭제는 × 버튼으로만 돼요.</div>
         <button class="dsw-btn" id="dsw-parse-btn">일정 정리하기 →</button>
       </div>
     </div>
@@ -665,6 +741,10 @@
     if(!t) return;
     if(t.id === 'dsw-sound-btn') return;              // 자체 핸들러에서 처리
     if(t.classList.contains('dsw-del-btn') || t.id === 'dsw-clear-all-btn'){ SoundFX.play('del'); return; }
+    if(t.closest('.dsw-seg')){
+      SoundFX.play(t.getAttribute('data-trip') === 'back' ? 'guardian' : 'home');
+      return;
+    }
     if(t.closest('.dsw-toggle')){
       SoundFX.play(t.getAttribute('data-val') === 'guardian' ? 'guardian' : 'home');
       return;
@@ -812,6 +892,7 @@
       type: (x.type === 'guardian') ? 'guardian' : 'home',
       guardianLocation: x.guardianLocation || '',
       owner: x.owner || '',
+      trip: (x.trip === 'back') ? 'back' : 'go',
       matched: !!x.matched
     }));
   }
@@ -820,6 +901,9 @@
     return arr.slice().sort((a,b)=>{
       const ao = (a.owner||'').localeCompare(b.owner||'', 'ko');
       if(ao !== 0) return ao;
+      const at = (a.trip==='back') ? 1 : 0;
+      const bt = (b.trip==='back') ? 1 : 0;
+      if(at !== bt) return at-bt;
       const av = (a.hour==null) ? 9999 : a.hour*60+(a.min||0);
       const bv = (b.hour==null) ? 9999 : b.hour*60+(b.min||0);
       return av-bv;
@@ -891,18 +975,38 @@
   function parseScheduleText(text){
     const lines = text.split('\n').map(l=>l.trim()).filter(Boolean);
     const entries = [];
+    let sectionTrip = null; // "하원" 같은 구분선을 만나면 그 아래 줄에 계속 적용
+
     for(const rawLine of lines){
       let line = rawLine
         .replace(/^[①②③④⑤⑥⑦⑧⑨⑩]\s*/, '')
         .replace(/^\d+[\.\)]\s*/, '');
 
       let type = null;
+      let trip = null;
+
       const typeMatch = line.match(/\(([^)]*)\)/);
       if(typeMatch){
-        if(typeMatch[1].includes('보호자')) type = 'guardian';
-        else if(typeMatch[1].includes('집')) type = 'home';
+        const inner = typeMatch[1];
+        if(inner.includes('보호자')) type = 'guardian';
+        else if(inner.includes('집')) type = 'home';
+        if(inner.includes('하원')) trip = 'back';
+        else if(inner.includes('등원')) trip = 'go';
         line = line.replace(typeMatch[0], '');
       }
+
+      // 등원 / 하원 키워드
+      const tripMatch = line.match(/(등원|하원)/);
+      if(tripMatch){
+        trip = (tripMatch[1] === '하원') ? 'back' : 'go';
+        line = line.replace(/(등원|하원)/g, ' ');
+      }
+
+      // 9/30, 9월 30일, (목) 같은 날짜 표기는 이름으로 오해하지 않게 지운다
+      line = line
+        .replace(/\d{1,2}\s*\/\s*\d{1,2}/g, ' ')
+        .replace(/\d{1,2}\s*월\s*\d{1,2}\s*일/g, ' ')
+        .replace(/[\(\[]?\s*[월화수목금토일]\s*(요일)?\s*[\)\]]?/g, ' ');
 
       let hour=null, min=0;
       const timeMatch = line.match(/(\d{1,2})\s*[시:]\s*(\d{1,2})?\s*분?/);
@@ -912,21 +1016,32 @@
         line = line.replace(timeMatch[0], '');
       }
 
-      line = line.replace(/[ㅡ\-—‐~]+/g, ' ').trim();
-      const name = (line.split(/\s+/)[0] || rawLine).trim();
-      if(!name) continue;
+      line = line.replace(/[ㅡ\-—‐~:]+/g, ' ').trim();
+      let name = (line.split(/\s+/)[0] || '').trim();
+
+      // 이름이 없는 줄은 "하원" 같은 구분선으로 취급
+      if(!name){
+        if(trip) sectionTrip = trip;
+        if(trip || hour !== null) continue;
+        name = rawLine.trim();
+        if(!name) continue;
+      }
+
+      if(trip) sectionTrip = trip;
 
       entries.push({
         id: 'e' + Date.now() + Math.random().toString(36).slice(2,7),
         rawName: name,
         hour, min, type,
+        trip: trip || sectionTrip,
         rawLine
       });
     }
     return entries;
   }
 
-  function buildScheduleFromParsed(parsed, owner){
+  function buildScheduleFromParsed(parsed, owner, trip){
+    const defTrip = (trip === 'back') ? 'back' : 'go';
     return parsed.map(p=>{
       const dog = findDog(p.rawName);
       let type = p.type;
@@ -947,6 +1062,7 @@
         type: type,
         guardianLocation: (dog && dog.guardianSpot) ? dog.guardianSpot : '',
         owner: (owner||'').trim(),
+        trip: p.trip || defTrip,
         matched: !!dog
       };
     });
@@ -960,16 +1076,27 @@
 
   // ---------- render timeline ----------
   let ownerFilter = 'all';
+  let tripFilter = 'all';
   const NO_OWNER = '담당자 미지정';
 
   function ownerOf(it){
     const o = (it.owner||'').trim();
     return o || NO_OWNER;
   }
+  function tripOf(it){ return (it.trip === 'back') ? 'back' : 'go'; }
+  function tripLabel(t){ return (t === 'back') ? '🌆 하원' : '🌅 등원'; }
 
   // 픽업지가 비어 있으면 집 주소를 대신 보여준다 (공란 방지)
   function pickupOf(it){
     return (it.guardianLocation||'').trim() || (it.address||'').trim() || '';
+  }
+
+  const WEEKDAYS = ['일','월','화','수','목','금','토'];
+  function fmtDateShort(iso){
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');
+    if(!m) return iso||'';
+    const d = new Date(+m[1], +m[2]-1, +m[3]);
+    return (+m[2]) + '/' + (+m[3]) + '(' + WEEKDAYS[d.getDay()] + ')';
   }
 
   function renderTimeline(){
@@ -979,7 +1106,7 @@
       return;
     }
 
-    // 담당자별 그룹 만들기
+    // 담당자 목록
     const owners = [];
     schedule.forEach(it=>{
       const o = ownerOf(it);
@@ -992,15 +1119,33 @@
     });
     if(ownerFilter!=='all' && !owners.includes(ownerFilter)) ownerFilter = 'all';
 
-    const visibleOwners = (ownerFilter==='all') ? owners : [ownerFilter];
-    const visibleCount = schedule.filter(it=> visibleOwners.includes(ownerOf(it))).length;
+    const trips = [];
+    ['go','back'].forEach(t=>{ if(schedule.some(it=>tripOf(it)===t)) trips.push(t); });
+    if(tripFilter!=='all' && !trips.includes(tripFilter)) tripFilter = 'all';
+
+    const isVisible = (it)=>
+      (ownerFilter==='all' || ownerOf(it)===ownerFilter) &&
+      (tripFilter==='all' || tripOf(it)===tripFilter);
+    const visibleCount = schedule.filter(isVisible).length;
+    const filtered = (ownerFilter!=='all' || tripFilter!=='all');
 
     let html = '';
 
-    // 담당자 필터 칩
+    // 등원/하원 필터
+    if(trips.length > 1){
+      html += '<div class="dsw-ownerchips">';
+      html += '<button class="dsw-chip '+(tripFilter==='all'?'on':'')+'" data-trip-filter="all">등하원 전체</button>';
+      trips.forEach(t=>{
+        const cnt = schedule.filter(it=>tripOf(it)===t).length;
+        html += '<button class="dsw-chip '+(tripFilter===t?'on':'')+'" data-trip-filter="'+t+'">'+tripLabel(t)+' ('+cnt+')</button>';
+      });
+      html += '</div>';
+    }
+
+    // 담당자 필터
     if(owners.length > 1){
       html += '<div class="dsw-ownerchips">';
-      html += '<button class="dsw-chip '+(ownerFilter==='all'?'on':'')+'" data-owner="all">전체 ('+schedule.length+')</button>';
+      html += '<button class="dsw-chip '+(ownerFilter==='all'?'on':'')+'" data-owner="all">담당자 전체</button>';
       owners.forEach(o=>{
         const cnt = schedule.filter(it=>ownerOf(it)===o).length;
         html += '<button class="dsw-chip '+(ownerFilter===o?'on':'')+'" data-owner="'+esc(o)+'">'+esc(o)+' ('+cnt+')</button>';
@@ -1008,69 +1153,88 @@
       html += '</div>';
     }
 
-    const delLabel = (ownerFilter==='all') ? '전체 삭제' : esc(ownerFilter)+' 일정 삭제';
+    const delLabel = filtered ? '보이는 일정 삭제 ('+visibleCount+')' : '전체 삭제';
     html += '<div style="text-align:right;margin-bottom:8px;"><button id="dsw-clear-all-btn" style="border:1px solid var(--line);background:#fff;color:var(--ink-soft);font-size:12px;font-weight:700;padding:6px 10px;border-radius:8px;cursor:pointer;">'+delLabel+'</button></div>';
 
-    visibleOwners.forEach(o=>{
-      const items = schedule.filter(it=>ownerOf(it)===o);
-      if(!items.length) return;
+    const dateStr = fmtDateShort(currentDate);
 
-      html += '<div class="dsw-group">';
-      if(owners.length > 1 || o !== NO_OWNER){
-        html += '<div class="dsw-grouphead"><span class="gname">🚐 '+esc(o)+'</span><span class="gcount">'+items.length+'마리</span></div>';
-      }
-      html += '<div class="dsw-timeline">';
+    // 담당자 → 등원/하원 순으로 묶어서 보여준다
+    owners.forEach(o=>{
+      if(ownerFilter!=='all' && o!==ownerFilter) return;
 
-      items.forEach((it, idx)=>{
-        const cls = !it.matched ? 'unknown' : (it.type==='guardian' ? 'guardian':'');
-        html += '<div class="dsw-item '+cls+'" data-id="'+it.id+'">';
-        html += '<div class="dsw-dot"></div>';
-        html += '<div class="dsw-itemcard">';
-        html += '<div class="dsw-item-top">';
-        html += '<div><span class="dsw-time">'+fmtTime(it.hour,it.min)+'</span><span class="dsw-name">'+(idx+1)+'. '+esc(it.name)+'</span>'
-             + '<div class="dsw-subline"><span class="dsw-typetag '+(it.type==='guardian'?'guardian':'home')+'">'+(it.type==='guardian'?'보호자 픽업':'집 픽업')+'</span>'
-             + (it.breed?('<span class="dsw-breed">'+esc(it.breed)+'</span>'):'') + '</div></div>';
-        html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
-        html += '<div class="dsw-toggle">';
-        html += '<button data-act="type" data-val="home" class="'+(it.type==='home'?'on home':'')+'">'+(it.type==='home'?'✓ 집':'집')+'</button>';
-        html += '<button data-act="type" data-val="guardian" class="'+(it.type==='guardian'?'on guardian':'')+'">'+(it.type==='guardian'?'✓ 보호자':'보호자')+'</button>';
-        html += '</div>';
-        html += '<button class="dsw-del-btn" data-del-id="'+it.id+'" style="border:none;background:#FDEDE2;color:#B3541E;width:26px;height:26px;border-radius:7px;font-size:15px;font-weight:800;cursor:pointer;line-height:1;">×</button>';
-        html += '</div></div>';
+      ['go','back'].forEach(tp=>{
+        if(tripFilter!=='all' && tp!==tripFilter) return;
+        const items = schedule.filter(it=>ownerOf(it)===o && tripOf(it)===tp);
+        if(!items.length) return;
 
-        html += '<div class="dsw-body">';
-        if(!it.matched){
-          html += '<div class="dsw-unmatched">⚠️ 주소록에 없는 이름이에요. 주소록 관리 탭에서 추가하면 다음부터 자동으로 채워져요.</div>';
-        }
+        html += '<div class="dsw-group">';
+        html += '<div class="dsw-grouphead">'
+             +   '<span class="gdate">'+esc(dateStr)+'</span>'
+             +   '<span class="gtrip '+tp+'">'+tripLabel(tp)+'</span>'
+             +   '<span class="gname">🚐 '+esc(o)+'</span>'
+             +   '<span class="gcount">'+items.length+'마리</span>'
+             + '</div>';
+        html += '<div class="dsw-timeline">';
 
-        if(it.type === 'guardian'){
-          // 보호자 픽업이어도 주소와 출입 정보를 함께 보여준다
-          html += '<div class="dsw-row"><span class="k">픽업지</span><span class="v"><input class="dsw-guard-input" data-id="'+it.id+'" placeholder="예: 오리역 7번 출구 앞" value="'+esc(pickupOf(it))+'" style="width:100%;border:1px solid var(--line);border-radius:7px;padding:5px 7px;font-size:12.5px;"/></span></div>';
-        }
-        if(it.address) html += '<div class="dsw-row"><span class="k">주소</span><span class="v">'+esc(it.address)+'</span></div>';
-        if(it.access) html += '<div class="dsw-row"><span class="k">출입</span><span class="v">'+esc(it.access)+'</span></div>';
+        items.forEach((it, idx)=>{
+          const cls = !it.matched ? 'unknown' : (it.type==='guardian' ? 'guardian':'');
+          html += '<div class="dsw-item '+cls+'" data-id="'+it.id+'">';
+          html += '<div class="dsw-dot"></div>';
+          html += '<div class="dsw-itemcard">';
+          html += '<div class="dsw-item-top">';
+          html += '<div><span class="dsw-time">'+fmtTime(it.hour,it.min)+'</span><span class="dsw-name">'+(idx+1)+'. '+esc(it.name)+'</span>'
+               + '<div class="dsw-subline">'
+               +   '<span class="dsw-triptag '+tp+'">'+tripLabel(tp)+'</span>'
+               +   '<span class="dsw-typetag '+(it.type==='guardian'?'guardian':'home')+'">'+(it.type==='guardian'?'보호자 픽업':'집 픽업')+'</span>'
+               +   (it.breed?('<span class="dsw-breed">'+esc(it.breed)+'</span>'):'')
+               + '</div></div>';
+          html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">';
+          html += '<div class="dsw-toggle">';
+          html += '<button data-act="type" data-val="home" class="'+(it.type==='home'?'on home':'')+'">'+(it.type==='home'?'✓ 집':'집')+'</button>';
+          html += '<button data-act="type" data-val="guardian" class="'+(it.type==='guardian'?'on guardian':'')+'">'+(it.type==='guardian'?'✓ 보호자':'보호자')+'</button>';
+          html += '</div>';
+          html += '<button class="dsw-del-btn" data-del-id="'+it.id+'" style="border:none;background:#FDEDE2;color:#B3541E;width:26px;height:26px;border-radius:7px;font-size:15px;font-weight:800;cursor:pointer;line-height:1;">×</button>';
+          html += '</div></div>';
 
-        if(it.note) html += '<div class="dsw-note">📌 '+esc(it.note)+'</div>';
-        html += '<div class="dsw-editrow">';
-        html += '<input data-cage-id="'+it.id+'" placeholder="캔넬 크기 (예: 작은 캔넬)" value="'+esc(it.cage||'')+'"/>';
-        html += '<input data-owner-id="'+it.id+'" placeholder="담당자" value="'+esc(it.owner||'')+'" style="max-width:38%;"/>';
-        html += '</div>';
-        html += '</div>'; // body
-        html += '</div></div>';
+          html += '<div class="dsw-body">';
+          if(!it.matched){
+            html += '<div class="dsw-unmatched">⚠️ 주소록에 없는 이름이에요. 주소록 관리 탭에서 추가하면 다음부터 자동으로 채워져요.</div>';
+          }
+          if(it.type === 'guardian'){
+            html += '<div class="dsw-row"><span class="k">픽업지</span><span class="v"><input class="dsw-guard-input" data-id="'+it.id+'" placeholder="예: 오리역 7번 출구 앞" value="'+esc(pickupOf(it))+'" style="width:100%;border:1px solid var(--line);border-radius:7px;padding:5px 7px;font-size:12.5px;"/></span></div>';
+          }
+          if(it.address) html += '<div class="dsw-row"><span class="k">주소</span><span class="v">'+esc(it.address)+'</span></div>';
+          if(it.access) html += '<div class="dsw-row"><span class="k">출입</span><span class="v">'+esc(it.access)+'</span></div>';
+
+          if(it.note) html += '<div class="dsw-note">📌 '+esc(it.note)+'</div>';
+          html += '<div class="dsw-editrow">';
+          html += '<select data-trip-id="'+it.id+'"><option value="go"'+(tp==='go'?' selected':'')+'>등원</option><option value="back"'+(tp==='back'?' selected':'')+'>하원</option></select>';
+          html += '<input data-cage-id="'+it.id+'" placeholder="캔넬 크기" value="'+esc(it.cage||'')+'"/>';
+          html += '<input data-owner-id="'+it.id+'" placeholder="담당자" value="'+esc(it.owner||'')+'" style="max-width:32%;"/>';
+          html += '</div>';
+          html += '</div>'; // body
+          html += '</div></div>';
+        });
+
+        html += '</div></div>'; // timeline, group
       });
-
-      html += '</div></div>'; // timeline, group
     });
 
     if(!visibleCount){
-      html += '<div class="dsw-empty">이 담당자의 일정이 없어요.</div>';
+      html += '<div class="dsw-empty">이 조건에 맞는 일정이 없어요.</div>';
     }
 
     wrap.innerHTML = html;
 
-    $$('.dsw-chip', wrap).forEach(chip=>{
+    $$('[data-owner]', wrap).forEach(chip=>{
       chip.addEventListener('click', ()=>{
         ownerFilter = chip.getAttribute('data-owner');
+        renderTimeline();
+      });
+    });
+    $$('[data-trip-filter]', wrap).forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        tripFilter = chip.getAttribute('data-trip-filter');
         renderTimeline();
       });
     });
@@ -1111,6 +1275,18 @@
         }
       });
     });
+    $$('[data-trip-id]', wrap).forEach(sel=>{
+      sel.addEventListener('change', async (e)=>{
+        const entry = schedule.find(s=>s.id===e.target.getAttribute('data-trip-id'));
+        if(entry){
+          entry.trip = (e.target.value === 'back') ? 'back' : 'go';
+          SoundFX.play(entry.trip === 'back' ? 'guardian' : 'home');
+          schedule = sortSchedule(schedule);
+          renderTimeline();
+          await saveSchedule();
+        }
+      });
+    });
     $$('[data-owner-id]', wrap).forEach(inp=>{
       inp.addEventListener('change', async (e)=>{
         const id = e.target.getAttribute('data-owner-id');
@@ -1139,13 +1315,14 @@
     const clearAllBtn = $('#dsw-clear-all-btn', wrap);
     if(clearAllBtn){
       clearAllBtn.addEventListener('click', async ()=>{
-        if(ownerFilter === 'all'){
+        if(!filtered){
           if(!confirm('이 날짜의 일정을 전부 삭제할까요?')) return;
           schedule = [];
         } else {
-          if(!confirm('\u2018'+ownerFilter+'\u2019 담당 일정을 전부 삭제할까요?')) return;
-          schedule = schedule.filter(s=>ownerOf(s)!==ownerFilter);
+          if(!confirm('지금 보이는 '+visibleCount+'개 일정을 삭제할까요?')) return;
+          schedule = schedule.filter(it=>!isVisible(it));
           ownerFilter = 'all';
+          tripFilter = 'all';
         }
         renderTimeline();
         await saveSchedule();
@@ -1286,6 +1463,7 @@
       await loadSchedule(currentDate);
       refreshFromDB();
       ownerFilter = 'all';
+      tripFilter = 'all';
       renderTimeline();
       attachScheduleListener();
     });
@@ -1295,18 +1473,35 @@
       renderOwnerDatalist();
     });
 
+    // 등원/하원 선택 (마지막 선택을 기억)
+    const savedTrip = lsGet('dsw-last-trip') === 'back' ? 'back' : 'go';
+    function setTrip(t){
+      $$('#dsw-trip button').forEach(b=>b.classList.toggle('on', b.getAttribute('data-trip')===t));
+      lsSet('dsw-last-trip', t);
+    }
+    setTrip(savedTrip);
+    $$('#dsw-trip button').forEach(b=>{
+      b.addEventListener('click', ()=> setTrip(b.getAttribute('data-trip')));
+    });
+    function currentTrip(){
+      const on = $('#dsw-trip button.on');
+      return (on && on.getAttribute('data-trip')==='back') ? 'back' : 'go';
+    }
+
     $('#dsw-parse-btn').addEventListener('click', async ()=>{
       const text = $('#dsw-raw').value;
       if(!text.trim()) return;
       const owner = $('#dsw-owner').value.trim();
+      const trip = currentTrip();
       const parsed = parseScheduleText(text);
-      const newEntries = buildScheduleFromParsed(parsed, owner);
+      const newEntries = buildScheduleFromParsed(parsed, owner, trip);
 
-      // 기존 일정을 지우지 않고 뒤에 이어붙인다. 같은 담당자·이름·시간이면 중복으로 보고 건너뜀.
+      // 기존 일정을 지우지 않고 뒤에 이어붙인다. 같은 담당자·등하원·이름·시간이면 중복으로 보고 건너뜀.
       const added = [];
       newEntries.forEach(ne=>{
         const dup = schedule.find(s=>
           (s.owner||'') === (ne.owner||'') &&
+          (s.trip||'go') === (ne.trip||'go') &&
           s.name === ne.name &&
           s.hour === ne.hour &&
           (s.min||0) === (ne.min||0)
@@ -1318,6 +1513,7 @@
       rememberOwner(owner);
       renderOwnerDatalist();
       ownerFilter = owner ? owner : 'all';
+      tripFilter = 'all';
       renderTimeline();
       switchTab('timeline');
       await saveSchedule();
