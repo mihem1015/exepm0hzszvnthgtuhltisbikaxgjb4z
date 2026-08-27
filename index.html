@@ -123,6 +123,59 @@
     gap:8px;
     margin-bottom:12px;
   }
+  .dsw-datenav{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    margin-bottom:8px;
+  }
+  .dsw-datenav input[type=date]{
+    flex:1;
+    padding:9px 10px;
+    border-radius:9px;
+    border:1px solid var(--line);
+    font-size:14px;
+    background:#fff;
+    color:var(--ink);
+    font-family:inherit;
+  }
+  .dsw-arrow{
+    flex-shrink:0;
+    width:38px;
+    height:38px;
+    border-radius:9px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--brown-dark);
+    font-size:17px;
+    font-weight:800;
+    cursor:pointer;
+    line-height:1;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .dsw-arrow:active{background:#F4EADB;}
+  .dsw-todayrow{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-bottom:12px;
+    min-height:22px;
+  }
+  .dsw-todaybadge{
+    font-size:11.5px;
+    font-weight:700;
+    color:#4C8A5E;
+  }
+  #dsw-today-btn{
+    border:1px solid #E5D6BE;
+    background:#F4EADB;
+    color:var(--brown-dark);
+    font-size:12px;
+    font-weight:800;
+    padding:6px 12px;
+    border-radius:999px;
+    cursor:pointer;
+  }
   .dsw-datebox input[type=date]{
     flex:1;
     padding:9px 10px;
@@ -875,9 +928,12 @@
     <div class="dsw-panel active" id="panel-input">
       <div class="dsw-card">
         <span class="dsw-card-label">날짜</span>
-        <div class="dsw-datebox">
+        <div class="dsw-datenav">
+          <button type="button" class="dsw-arrow" id="dsw-date-prev" title="하루 전">‹</button>
           <input type="date" id="dsw-date"/>
+          <button type="button" class="dsw-arrow" id="dsw-date-next" title="하루 뒤">›</button>
         </div>
+        <div class="dsw-todayrow" id="dsw-todayrow"></div>
         <span class="dsw-card-label">등원 / 하원</span>
         <div class="dsw-seg" id="dsw-trip">
           <button type="button" data-trip="go" class="on">🌅 등원</button>
@@ -983,7 +1039,24 @@
 
   let db = [];
   let schedule = [];
-  let currentDate = new Date().toISOString().slice(0,10);
+  // toISOString()은 UTC 기준이라 한국(UTC+9)에서는 오전 9시 전에 '어제'가 나온다.
+  // 등원 시간대가 정확히 여기에 걸리므로 반드시 현지 시각으로 계산해야 한다.
+  function isoOf(d){
+    return d.getFullYear() + '-'
+         + String(d.getMonth()+1).padStart(2,'0') + '-'
+         + String(d.getDate()).padStart(2,'0');
+  }
+  function todayISO(){ return isoOf(new Date()); }
+  function shiftISO(iso, days){
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||'');
+    if(!m) return todayISO();
+    const d = new Date(+m[1], +m[2]-1, +m[3]);
+    d.setDate(d.getDate() + days);
+    return isoOf(d);
+  }
+
+  let currentDate = todayISO();
+  let manualDate = false;   // 사람이 직접 다른 날짜를 골랐는지
 
   const $ = (sel, root) => (root||document).querySelector(sel);
   const $$ = (sel, root) => Array.from((root||document).querySelectorAll(sel));
@@ -2596,12 +2669,28 @@
     });
   }
 
+  // 지금 보고 있는 날짜가 오늘인지 알려주고, 아니면 돌아갈 버튼을 보여준다
+  function renderTodayRow(){
+    const row = $('#dsw-todayrow');
+    if(!row) return;
+    const today = todayISO();
+    if(currentDate === today){
+      row.innerHTML = '<span class="dsw-todaybadge">오늘 · ' + esc(fmtDateShort(today)) + '</span>';
+    } else {
+      row.innerHTML = '<button type="button" id="dsw-today-btn">↩ 오늘로 (' + esc(fmtDateShort(today)) + ')</button>';
+      const btn = $('#dsw-today-btn', row);
+      if(btn) btn.addEventListener('click', ()=>{ goToDate(todayISO(), false); });
+    }
+  }
+
   async function switchDate(dateStr){
     currentDate = dateStr;
-    lsSet('dsw-last-date', dateStr);
     ownerFilter = 'all'; tripFilter = 'all';
     schedule = [];
     lastSchedSig = '';
+    const input = $('#dsw-date');
+    if(input && input.value !== dateStr) input.value = dateStr;
+    renderTodayRow();
     if(FIREBASE_ENABLED && fbRef){
       renderTimeline();
       await attachScheduleListener();
@@ -2611,10 +2700,32 @@
     }
   }
 
+  let dateSeq = 0;
+  async function goToDate(dateStr, manual){
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(dateStr||'')) return;
+    manualDate = !!manual && (dateStr !== todayISO());
+    const my = ++dateSeq;
+    await switchDate(dateStr);
+    if(my !== dateSeq) return;   // 빠르게 여러 번 눌렀을 때 늦게 온 응답 무시
+  }
+
+  // 시계를 따라 날짜가 스스로 바뀌게 한다.
+  // 앱을 켜둔 채 자정을 넘겼거나, 잠갔다 다시 열었을 때를 위한 것.
+  function checkDateRollover(){
+    if(manualDate) return;
+    const today = todayISO();
+    if(today === currentDate) return;
+    goToDate(today, false).then(()=>{
+      showSaved('날짜가 ' + fmtDateShort(today) + '로 바뀌었어요');
+    });
+  }
+
   async function init(){
-    const savedDate = lsGet('dsw-last-date');
-    if(savedDate && /^\d{4}-\d{2}-\d{2}$/.test(savedDate)) currentDate = savedDate;
+    // 열 때는 언제나 오늘 날짜로 시작한다
+    currentDate = todayISO();
+    manualDate = false;
     $('#dsw-date').value = currentDate;
+    renderTodayRow();
 
     await loadDB();
     renderDB();
@@ -2664,14 +2775,23 @@
     $('#dsw-add-dog').addEventListener('click', addNewDog);
     bindBackupEvents();
 
-    let dateSeq = 0;
-    $('#dsw-date').addEventListener('change', async (e)=>{
-      const my = ++dateSeq;
-      const val = e.target.value;
-      if(!val) return;
-      await switchDate(val);
-      if(my !== dateSeq) return; // 빠르게 여러 번 바꿨을 때 늦게 온 응답 무시
+    $('#dsw-date').addEventListener('change', (e)=>{
+      if(!e.target.value){ e.target.value = currentDate; return; }
+      goToDate(e.target.value, true);
     });
+    $('#dsw-date-prev').addEventListener('click', ()=>{
+      goToDate(shiftISO(currentDate, -1), true);
+    });
+    $('#dsw-date-next').addEventListener('click', ()=>{
+      goToDate(shiftISO(currentDate, 1), true);
+    });
+
+    // 시계 따라가기: 1분마다 + 앱을 다시 열 때
+    setInterval(checkDateRollover, 60000);
+    document.addEventListener('visibilitychange', ()=>{
+      if(!document.hidden) checkDateRollover();
+    });
+    window.addEventListener('focus', checkDateRollover);
 
     // 등원/하원 선택 (마지막 선택을 기억)
     const savedTrip = lsGet('dsw-last-trip') === 'back' ? 'back' : 'go';
